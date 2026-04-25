@@ -5,7 +5,8 @@
         let lastBlob = null; 
         let lastZipBlob = null; 
 
-        const FIXED_LOGO_URL = "https://nauss.edu.sa/Style%20Library/ar-sa/Styles/images/home/logo-footer.png";
+        const FIXED_LOGO_URL = "./public/assets/logo-footer.png";
+        const FALLBACK_LOGO_URL = "https://nauss.edu.sa/Style%20Library/ar-sa/Styles/images/home/logo-footer.png";
         
         const UNI = {
             green: "#016564",
@@ -59,7 +60,18 @@
 
         try { const fontCairo = new FontFace('Cairo', 'url(https://fonts.gstatic.com/s/cairo/v28/SLXgc1nY6HkvangtZmpQdkhzfH5lkSs2SgRjCAGMQ1z0hGA-W1M.woff2)'); document.fonts.add(fontCairo); fontCairo.load(); } catch(e) {}
 
-        function loadDefaultLogo() { const img = new Image(); img.crossOrigin = "Anonymous"; img.onload = () => { logoImage = img; }; img.onerror = () => {}; img.src = FIXED_LOGO_URL; }
+        function loadDefaultLogo() {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => { logoImage = img; };
+            img.onerror = () => {
+                const fallback = new Image();
+                fallback.crossOrigin = "Anonymous";
+                fallback.onload = () => { logoImage = fallback; };
+                fallback.src = FALLBACK_LOGO_URL;
+            };
+            img.src = FIXED_LOGO_URL;
+        }
 
         document.addEventListener('DOMContentLoaded', () => { addRow(); initWeekNumber(); loadDefaultLogo(); loadMemory(); checkShareSupport(); });
 
@@ -74,16 +86,7 @@
         function loadMemory() { const m = localStorage.getItem(MEMORY_KEY); if(m) lastUsed = JSON.parse(m); }
         function saveMemory(key, val) { lastUsed[key] = val; localStorage.setItem(MEMORY_KEY, JSON.stringify(lastUsed)); }
 
-        function handleLogoUpload(e) {
-            const file = e.target.files[0]; if(!file) return;
-            const reader = new FileReader();
-            reader.onload = function(ev) {
-                const img = new Image();
-                img.onload = function() { logoImage = img; document.getElementById('logo-preview-box').classList.remove('hidden'); document.getElementById('logo-preview-img').src = ev.target.result; showToast("تم رفع الشعار", 'success'); }
-                img.src = ev.target.result;
-            }
-            reader.readAsDataURL(file);
-        }
+        // الشعار الرسمي ثابت ويحمّل تلقائيًا من public/assets/logo-footer.png
 
         function addRow(d = {}) { 
             const id = Date.now() + Math.random(); 
