@@ -86,6 +86,28 @@
             return raw;
         }
 
+        function isInternalExecutionPlace(value) {
+            const v = normalizeArabicValue(value);
+            if (!v) return true;
+            return v.includes('جامعه نايف') || v.includes('جامعة نايف') || v.includes('نايف العربيه') || v.includes('مقر الجامعه') || v.includes('مقر الجامعة') || v === normalizeArabicValue(DEFAULT_EXECUTION_PLACE);
+        }
+
+        function applyExecutionPlaceRules(row) {
+            if (!row) return row;
+            row.loc = normalizeExecutionPlace(row.loc);
+            if (!isInternalExecutionPlace(row.loc)) {
+                row.f = 'خارجي';
+                row.r = 'خارج المملكة';
+            }
+            return row;
+        }
+
+        function shouldHideFloorValue(value) {
+            const v = normalizeArabicValue(value);
+            return v === 'خارجي' || v === 'خارج الرياض' || v === 'خارج المملكه' || v === 'خارج المملكة';
+        }
+
+
         function normalizePeriod(value) {
             const v = normalizeArabicValue(value);
             if (['ص', '1', 'الصبح', 'صباح', 'صباحي'].includes(v)) return 'صباحي';
@@ -342,18 +364,18 @@
         // الشعار الرسمي ثابت ويحمّل تلقائيًا من public/assets/logo-footer.png
 
         function normalizeLegacyRow(d = {}) {
-            return {
+            return applyExecutionPlaceRules({
                 id: d.id || Date.now() + Math.random(),
                 n: d.n || d[KEYS.n] || "",
                 loc: d.loc || d.place || d.executionPlace || d[KEYS.loc] || lastUsed.loc || DEFAULT_EXECUTION_PLACE,
                 s: d.s || d[KEYS.s] || "",
                 e: d.e || d[KEYS.e] || "",
-                st: d.st || d[KEYS.st] || lastUsed.st || DDL.status[0],
+                st: normalizeStatus(d.st || d[KEYS.st] || lastUsed.st || DDL.status[0]),
                 sp: d.sp || d[KEYS.sp] || lastUsed.sp || DDL.sup[0],
                 r: d.r || d[KEYS.r] || lastUsed.r || DDL.room[0],
-                f: d.f || d[KEYS.f] || lastUsed.f || DDL.floor[0],
-                p: d.p || d[KEYS.p] || lastUsed.p || DDL.period[0]
-            };
+                f: normalizeFloor(d.f || d[KEYS.f] || lastUsed.f || DDL.floor[0]),
+                p: normalizePeriod(d.p || d[KEYS.p] || lastUsed.p || DDL.period[0])
+            });
         }
 
         function addRow(d = {}) { 
@@ -396,6 +418,21 @@
                 if (k === 'f') v = normalizeFloor(v);
                 if (k === 'st') v = normalizeStatus(v);
                 o[k] = v;
+                if (k === 'loc') {
+                    applyExecutionPlaceRules(o);
+                    const rowEl = document.getElementById(`r-${id}`);
+                    if (rowEl) {
+                        const index = rows.findIndex(x => x.id === id);
+                        rowEl.remove();
+                        renderRow(o);
+                        const box = document.getElementById('rows-box');
+                        const newEl = document.getElementById(`r-${id}`);
+                        if (box && newEl && index >= 0 && index < box.children.length - 1) {
+                            box.insertBefore(newEl, box.children[index]);
+                        }
+                        updateIdx();
+                    }
+                }
                 if (k === 's') updateWeekNumberFromRows();
             }
             saveMemory(k, v);
@@ -497,7 +534,7 @@
             const cells = [...clean];
             while (cells.length < 9) cells.push('');
 
-            return {
+            return applyExecutionPlaceRules({
                 n: cells[0] || '',
                 loc: normalizeExecutionPlace(cells[1]),
                 s: parseExcelDate(cells[2]) || cells[2] || '',
@@ -507,7 +544,7 @@
                 r: cells[6] || DDL.room[0],
                 f: normalizeFloor(cells[7] || DDL.floor[0]),
                 p: normalizePeriod(cells[8] || DDL.period[0])
-            };
+            });
         }
 
         function parseSmartPasteText(rawText) {
@@ -1334,7 +1371,7 @@
                 ];
                 const bottomRow = [
                     { icon: 'room', label: 'القاعة', value: c.r },
-                    { icon: 'floor', label: 'الدور', value: c.f }
+                    { icon: 'floor', label: 'الدور', value: shouldHideFloorValue(c.f) ? '' : c.f }
                 ];
                 topRow.forEach((item, index) => {
                     const boxX = x + infoPadding + contentW - topBoxW - index * (topBoxW + topBoxGap);
@@ -1345,8 +1382,8 @@
                     const boxX = x + infoPadding + contentW - bottomBoxW - index * (bottomBoxW + bottomBoxGap);
                     drawIosInfoBoxAt(boxX, secondRowY, bottomBoxW, rowBoxH, item.icon, item.label, item.value);
                 });
-            } else if (currentTemplate === 4) { drawInfoBox('⚡', c.st); drawInfoBox('⏰', c.p); drawInfoBox('🌍', c.loc); drawInfoBox('🧱', c.f); drawInfoBox('🏛️', c.r); }
-            else { drawInfoBox('الحالة', c.st); drawInfoBox('الفترة', c.p); drawInfoBox('مكان التنفيذ', c.loc); drawInfoBox('الطابق', c.f); drawInfoBox('القاعة', c.r); }
+            } else if (currentTemplate === 4) { drawInfoBox('⚡', c.st); drawInfoBox('⏰', c.p); drawInfoBox('🌍', c.loc); if (!shouldHideFloorValue(c.f)) drawInfoBox('🧱', c.f); drawInfoBox('🏛️', c.r); }
+            else { drawInfoBox('الحالة', c.st); drawInfoBox('الفترة', c.p); drawInfoBox('مكان التنفيذ', c.loc); if (!shouldHideFloorValue(c.f)) drawInfoBox('الطابق', c.f); drawInfoBox('القاعة', c.r); }
             
             currentY += gridH + gridSupGap;
 
