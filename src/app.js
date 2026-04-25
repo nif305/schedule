@@ -54,10 +54,49 @@
 
         function parseExcelDate(value) {
             if (!value) return '';
-            const formatDate = (dateObj) => { let year = dateObj.getFullYear(); let month = (dateObj.getMonth() + 1).toString().padStart(2, '0'); let day = dateObj.getDate().toString().padStart(2, '0'); return `${year}-${month}-${day}`; };
+            const formatDate = (dateObj) => {
+                let year = dateObj.getFullYear();
+                let month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+                let day = dateObj.getDate().toString().padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
             if (value instanceof Date) return formatDate(value);
-            if (typeof value === 'number') { const date = new Date((value - 25569) * 86400 * 1000); return formatDate(date); }
-            if (typeof value === 'string') { if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value; const date = new Date(value); if (!isNaN(date.getTime())) return formatDate(date); }
+
+            if (typeof value === 'number') {
+                const date = new Date((value - 25569) * 86400 * 1000);
+                return formatDate(date);
+            }
+
+            if (typeof value === 'string') {
+                const raw = value.trim();
+                if (!raw) return '';
+
+                const normalized = raw
+                    .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+                    .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+                    .replace(/[\/\.]/g, '-');
+
+                let match = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+                if (match) {
+                    const y = match[1];
+                    const m = match[2].padStart(2, '0');
+                    const d = match[3].padStart(2, '0');
+                    return `${y}-${m}-${d}`;
+                }
+
+                match = normalized.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+                if (match) {
+                    const d = match[1].padStart(2, '0');
+                    const m = match[2].padStart(2, '0');
+                    const y = match[3];
+                    return `${y}-${m}-${d}`;
+                }
+
+                const date = new Date(raw);
+                if (!isNaN(date.getTime())) return formatDate(date);
+            }
+
             return '';
         }
         
