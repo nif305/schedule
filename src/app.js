@@ -1048,7 +1048,7 @@
             const drawLineIcon = (iconType, cx, cy, size, color) => {
                 ctx.save();
                 ctx.strokeStyle = color;
-                ctx.lineWidth = Math.max(2, size * 0.09);
+                ctx.lineWidth = Math.max(3, size * 0.12);
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
                 const s = size;
@@ -1149,10 +1149,10 @@
                 ctx.fillStyle = '#f5f5f7';
                 drawRoundedRect(ctx, boxX, boxY, boxWLocal, boxHLocal, 18*sc);
 
-                const labelFontSize = isScreen ? 18 : 11;
+                const labelFontSize = isScreen ? 19 : 12;
                 const valueFontSize = isScreen ? 28 : 18;
-                const iconSize = isScreen ? 22 : 14;
-                const iconGap = isScreen ? 10 : 6;
+                const iconSize = isScreen ? 36 : 22;
+                const iconGap = isScreen ? 12 : 8;
                 const headerY = boxY + boxHLocal * 0.32;
                 const headerColor = '#8e8e93';
                 const iconColor = '#C7B08C';
