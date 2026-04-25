@@ -1013,34 +1013,115 @@
             }
 
             const isVibrantScreen = currentTemplate === 3 && isScreen;
+            const isIosTemplate = currentTemplate === 4;
             const baseTitleSize = isVibrantScreen ? 70 : (isScreen ? 65 : 40);
             const dateFontSize = isVibrantScreen ? 38 : (isScreen ? 35 : 24);
-            const gridH = isVibrantScreen ? 170 : (isScreen ? 150 : 100);
-            const supFontSize = isVibrantScreen ? 44 : (isScreen ? 35 : 24);
+            const gridH = isIosTemplate ? (isScreen ? 220 : 136) : (isVibrantScreen ? 170 : (isScreen ? 150 : 100));
+            const supFontSize = isIosTemplate ? (isScreen ? 39 : 26) : (isVibrantScreen ? 44 : (isScreen ? 35 : 24));
             const gapSize = isVibrantScreen ? 42 : (isScreen ? 25 : 15);
+            const titleDateGap = isIosTemplate ? (isScreen ? 34 : 20) : gapSize;
+            const dateGridGap = isIosTemplate ? (isScreen ? 32 : 18) : gapSize;
+            const gridSupGap = isIosTemplate ? (isScreen ? 30 : 18) : gapSize;
             const fullTitle = c.n + (isExternalExecution(c.loc) ? ' 🌍' : '');
             const result = wrapTextSmart(ctx, fullTitle, w - padding*2, 2, baseTitleSize);
             const titleLines = result.lines; const titleFontSize = result.fontSize; const lineHeight = result.lineHeight;
             const titleH = titleLines.length * lineHeight;
             
-            const totalContentH = titleH + gapSize + dateFontSize + gapSize + gridH + gapSize + supFontSize;
+            const totalContentH = titleH + titleDateGap + dateFontSize + dateGridGap + gridH + gridSupGap + supFontSize;
             let currentY = y + (h - totalContentH) / 2;
             const centerX = x + w / 2;
 
             ctx.font = `bold ${titleFontSize}px Cairo`; ctx.fillStyle = cardText; ctx.textAlign = 'center';
             let textY = currentY + titleFontSize;
             titleLines.forEach((line, index) => { ctx.fillText(line, centerX, textY); textY += lineHeight; });
-            currentY += titleH + gapSize;
+            currentY += titleH + titleDateGap;
 
             if (currentTemplate === 6) ctx.fillStyle = 'rgba(1, 101, 100, 0.8)';
             else if(currentTemplate === 2) ctx.fillStyle = UNI.greenMid;
             else if(currentTemplate === 5) ctx.fillStyle = '#555';
             else ctx.fillStyle = '#64748b';
             const dateText = isVibrantScreen ? `${c.s} إلى ${c.e}` : `${c.s} - ${c.e}`;
-            ctx.font = `normal ${dateFontSize}px Cairo`; ctx.fillText(dateText, centerX, currentY + dateFontSize); currentY += dateFontSize + gapSize;
+            ctx.font = `normal ${dateFontSize}px Cairo`; ctx.fillText(dateText, centerX, currentY + dateFontSize); currentY += dateFontSize + dateGridGap;
 
             const infoPadding = isVibrantScreen ? 70*sc : padding;
             let gridStartX = x + infoPadding; const boxGap = isVibrantScreen ? 28*sc : 20*sc; const boxW = (w - infoPadding*2 - (boxGap*4)) / 5;
+            const drawLineIcon = (iconType, cx, cy, size, color) => {
+                ctx.save();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = Math.max(2, size * 0.09);
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                const s = size;
+                switch (iconType) {
+                    case 'location': {
+                        ctx.beginPath();
+                        ctx.arc(cx, cy - s * 0.12, s * 0.18, 0, Math.PI * 2);
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.moveTo(cx, cy + s * 0.42);
+                        ctx.lineTo(cx - s * 0.18, cy + s * 0.08);
+                        ctx.quadraticCurveTo(cx - s * 0.28, cy - s * 0.1, cx, cy - s * 0.3);
+                        ctx.quadraticCurveTo(cx + s * 0.28, cy - s * 0.1, cx + s * 0.18, cy + s * 0.08);
+                        ctx.closePath();
+                        ctx.stroke();
+                        break;
+                    }
+                    case 'status': {
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, s * 0.3, 0, Math.PI * 2);
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.moveTo(cx - s * 0.12, cy + s * 0.02);
+                        ctx.lineTo(cx - s * 0.02, cy + s * 0.14);
+                        ctx.lineTo(cx + s * 0.16, cy - s * 0.1);
+                        ctx.stroke();
+                        break;
+                    }
+                    case 'period': {
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, s * 0.3, 0, Math.PI * 2);
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.moveTo(cx, cy);
+                        ctx.lineTo(cx, cy - s * 0.14);
+                        ctx.moveTo(cx, cy);
+                        ctx.lineTo(cx + s * 0.12, cy + s * 0.08);
+                        ctx.stroke();
+                        break;
+                    }
+                    case 'room': {
+                        ctx.strokeRect(cx - s * 0.28, cy - s * 0.22, s * 0.56, s * 0.44);
+                        ctx.beginPath();
+                        ctx.moveTo(cx - s * 0.34, cy - s * 0.22);
+                        ctx.lineTo(cx, cy - s * 0.42);
+                        ctx.lineTo(cx + s * 0.34, cy - s * 0.22);
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.moveTo(cx, cy + s * 0.22);
+                        ctx.lineTo(cx, cy - s * 0.02);
+                        ctx.stroke();
+                        break;
+                    }
+                    case 'floor': {
+                        ctx.beginPath();
+                        ctx.moveTo(cx - s * 0.28, cy + s * 0.18);
+                        ctx.lineTo(cx - s * 0.08, cy + s * 0.18);
+                        ctx.lineTo(cx - s * 0.08, cy);
+                        ctx.lineTo(cx + s * 0.12, cy);
+                        ctx.lineTo(cx + s * 0.12, cy - s * 0.18);
+                        ctx.lineTo(cx + s * 0.3, cy - s * 0.18);
+                        ctx.stroke();
+                        break;
+                    }
+                    default: {
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, s * 0.08, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                }
+                ctx.restore();
+            };
+
             const drawInfoBox = (label, value) => {
                 const displayValue = value || '-';
                 if (currentTemplate === 6) { ctx.fillStyle = 'rgba(1, 101, 100, 0.1)'; drawRoundedRect(ctx, gridStartX, currentY, boxW, gridH, 8*sc); ctx.fillStyle = UNI.green; }
@@ -1062,14 +1143,58 @@
                 ctx.fillText(safeValue, gridStartX + boxW/2, currentY + gridH * 0.7);
                 gridStartX += boxW + boxGap;
             };
+
+            const drawIosInfoBoxAt = (boxX, boxY, boxWLocal, boxHLocal, iconType, label, value) => {
+                const displayValue = value || '-';
+                ctx.fillStyle = '#f5f5f7';
+                drawRoundedRect(ctx, boxX, boxY, boxWLocal, boxHLocal, 18*sc);
+                drawLineIcon(iconType, boxX + boxWLocal / 2, boxY + boxHLocal * 0.22, isScreen ? 26 : 18, '#7b8794');
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#8e8e93';
+                ctx.font = `normal ${isScreen ? 20 : 12}px Cairo`;
+                ctx.fillText(label, boxX + boxWLocal / 2, boxY + boxHLocal * 0.45);
+                ctx.fillStyle = cardText;
+                ctx.font = `bold ${isScreen ? 28 : 18}px Cairo`;
+                let safeValue = String(displayValue);
+                while (ctx.measureText(safeValue).width > boxWLocal - 36*sc && safeValue.length > 0) safeValue = safeValue.substring(0, safeValue.length - 1);
+                if (safeValue !== String(displayValue)) safeValue += '…';
+                ctx.fillText(safeValue, boxX + boxWLocal / 2, boxY + boxHLocal * 0.74);
+            };
             
-            if (currentTemplate === 4) { drawInfoBox('⚡', c.st); drawInfoBox('⏰', c.p); drawInfoBox('🌍', c.loc); drawInfoBox('🧱', c.f); drawInfoBox('🏛️', c.r); }
+            if (isIosTemplate) {
+                const contentW = w - infoPadding * 2;
+                const topBoxGap = 22 * sc;
+                const bottomBoxGap = 22 * sc;
+                const rowBoxH = isScreen ? 96 : 58;
+                const rowGap = isScreen ? 24 : 14;
+                const topBoxW = (contentW - topBoxGap * 2) / 3;
+                const bottomBoxW = (contentW - bottomBoxGap) / 2;
+                const topRow = [
+                    { icon: 'location', label: 'مكان التنفيذ', value: c.loc },
+                    { icon: 'status', label: 'الحالة', value: c.st },
+                    { icon: 'period', label: 'الفترة', value: c.p }
+                ];
+                const bottomRow = [
+                    { icon: 'room', label: 'القاعة', value: c.r },
+                    { icon: 'floor', label: 'الدور', value: c.f }
+                ];
+                topRow.forEach((item, index) => {
+                    const boxX = x + infoPadding + contentW - topBoxW - index * (topBoxW + topBoxGap);
+                    drawIosInfoBoxAt(boxX, currentY, topBoxW, rowBoxH, item.icon, item.label, item.value);
+                });
+                const secondRowY = currentY + rowBoxH + rowGap;
+                bottomRow.forEach((item, index) => {
+                    const boxX = x + infoPadding + contentW - bottomBoxW - index * (bottomBoxW + bottomBoxGap);
+                    drawIosInfoBoxAt(boxX, secondRowY, bottomBoxW, rowBoxH, item.icon, item.label, item.value);
+                });
+            } else if (currentTemplate === 4) { drawInfoBox('⚡', c.st); drawInfoBox('⏰', c.p); drawInfoBox('🌍', c.loc); drawInfoBox('🧱', c.f); drawInfoBox('🏛️', c.r); }
             else { drawInfoBox('الحالة', c.st); drawInfoBox('الفترة', c.p); drawInfoBox('مكان التنفيذ', c.loc); drawInfoBox('الطابق', c.f); drawInfoBox('القاعة', c.r); }
             
-            currentY += gridH + gapSize;
+            currentY += gridH + gridSupGap;
 
             ctx.fillStyle = UNI.supRed;
-            ctx.font = `${isVibrantScreen ? 'bold' : 'normal'} ${supFontSize}px Cairo`; ctx.fillText(`اسم منسق التدريب: ${c.sp}`, centerX, currentY + supFontSize);
+            ctx.font = `${isVibrantScreen || isIosTemplate ? 'bold' : 'normal'} ${supFontSize}px Cairo`; ctx.fillText(`اسم منسق التدريب: ${c.sp}`, centerX, currentY + supFontSize);
 
             const idxSize = (isScreen ? 24 : 12) * sc;
             if (currentTemplate === 6) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.beginPath(); ctx.arc(x + 50*sc, y + 50*sc, 25*sc, 0, 2 * Math.PI); ctx.fill(); ctx.fillStyle = '#ffffff'; }
