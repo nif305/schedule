@@ -38,6 +38,8 @@
         const KEYS = { n: "اسم الدورة", s: "بداية", e: "نهاية", r: "قاعة", f: "طابق", p: "فترة", st: "حالة", sp: "مشرف", t: "نوع" };
         const ARCH_KEY = "nfdp_archive_v42";
         const MEMORY_KEY = "nfdp_memory_v1";
+        const INTRO_KEY = "nfdp_intro_settings_v1";
+        const DEFAULT_SCREEN_INTRO = "ينفذ برنامج الشراكات الدولية بوزارة الداخلية بالتعاون مع جامعة نايف العربية للعلوم الأمنية البرامج التدريبية التالية:";
         let lastUsed = {};
 
         function showToast(message, type = 'info') { const container = document.getElementById('toast-container'); const toast = document.createElement('div'); toast.className = `toast ${type}`; toast.innerText = message; container.appendChild(toast); setTimeout(() => { toast.style.animation = 'fadeOut 0.3s ease-out forwards'; setTimeout(() => toast.remove(), 300); }, 3000); }
@@ -73,7 +75,7 @@
             img.src = FIXED_LOGO_URL;
         }
 
-        document.addEventListener('DOMContentLoaded', () => { addRow(); initWeekNumber(); loadDefaultLogo(); loadMemory(); checkShareSupport(); });
+        document.addEventListener('DOMContentLoaded', () => { addRow(); initWeekNumber(); loadDefaultLogo(); loadMemory(); loadIntroSettings(); checkShareSupport(); });
 
         // --- 2. UI Logic ---
         function initWeekNumber() { try { const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); const weeks = Object.keys(archive).map(Number).filter(n => !isNaN(n) && n > 0); let maxWeek = 0; if (weeks.length > 0) maxWeek = Math.max(...weeks); document.getElementById('w-id').value = maxWeek + 1; } catch(e) {} }
@@ -85,6 +87,43 @@
 
         function loadMemory() { const m = localStorage.getItem(MEMORY_KEY); if(m) lastUsed = JSON.parse(m); }
         function saveMemory(key, val) { lastUsed[key] = val; localStorage.setItem(MEMORY_KEY, JSON.stringify(lastUsed)); }
+
+        function loadIntroSettings() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(INTRO_KEY) || '{}');
+                const modeEl = document.getElementById('intro-mode');
+                const customEl = document.getElementById('intro-custom');
+                if (!modeEl || !customEl) return;
+                modeEl.value = saved.mode || 'default';
+                customEl.value = saved.customText || '';
+                handleIntroModeChange(false);
+            } catch(e) {}
+        }
+
+        function saveIntroSettings() {
+            const modeEl = document.getElementById('intro-mode');
+            const customEl = document.getElementById('intro-custom');
+            if (!modeEl || !customEl) return;
+            localStorage.setItem(INTRO_KEY, JSON.stringify({ mode: modeEl.value, customText: customEl.value }));
+        }
+
+        function handleIntroModeChange(showMessage = true) {
+            const modeEl = document.getElementById('intro-mode');
+            const customEl = document.getElementById('intro-custom');
+            if (!modeEl || !customEl) return;
+            customEl.classList.toggle('hidden', modeEl.value !== 'custom');
+            saveIntroSettings();
+            if (showMessage) showToast('تم تحديث إعداد النص التمهيدي', 'success');
+        }
+
+        function getScreenIntroText() {
+            const modeEl = document.getElementById('intro-mode');
+            const customEl = document.getElementById('intro-custom');
+            const mode = modeEl ? modeEl.value : 'default';
+            if (mode === 'none') return '';
+            if (mode === 'custom') return (customEl ? customEl.value.trim() : '');
+            return DEFAULT_SCREEN_INTRO;
+        }
 
         // الشعار الرسمي ثابت ويحمّل تلقائيًا من public/assets/logo-footer.png
 
@@ -421,12 +460,15 @@
             else ctx.fillStyle = '#475569';
             ctx.font = 'normal 45px Cairo';
             ctx.textAlign = 'center';
-            const introText = "ينفذ برنامج الشراكات الدولية بوزارة الداخلية بالتعاون مع جامعة نايف العربية للعلوم الأمنية البرامج التدريبية التالية:";
-            const introLines = wrapTextSimple(ctx, introText, W - 200);
+            const introText = getScreenIntroText();
             let introY = headerEndY + 400;
-            introLines.forEach(line => { ctx.fillText(line, W/2, introY); introY += 60; });
+            if (introText) {
+                const introLines = wrapTextSimple(ctx, introText, W - 200);
+                introLines.forEach(line => { ctx.fillText(line, W/2, introY); introY += 60; });
+                introY += 80;
+            }
 
-            let y = introY + 80;
+            let y = introText ? introY : headerEndY + 360;
             const cardW = 2000; const startX = 80; const cardGap = 40;
             const remainingH = H - y - 150; 
             const cardH = (remainingH - (cardGap * 3)) / 4;
