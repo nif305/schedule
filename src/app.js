@@ -37,7 +37,8 @@
 
         const KEYS = { n: "اسم النشاط التدريبي", loc: "مكان التنفيذ", s: "تاريخ البدء", e: "تاريخ الانتهاء", st: "الحالة", sp: "اسم منسق التدريب", r: "القاعة", f: "الطابق", p: "الفترة" };
         const INTERNAL_EXECUTION_KEYWORDS = ["السعودية", "المملكة", "الرياض", "جدة", "الدمام", "الجامعة", "جامعة نايف", "نايف"];
-        const DEFAULT_EXECUTION_PLACE = "المملكة العربية السعودية";
+        const DEFAULT_EXECUTION_PLACE = "مقر الجامعة";
+        const SCREEN_EMAIL_RECIPIENTS = [];
         const ARCH_KEY = "nfdp_archive_v42";
         const MEMORY_KEY = "nfdp_memory_v1";
         const INTRO_KEY = "nfdp_intro_settings_v1";
@@ -62,6 +63,76 @@
             return dateStr.replace(/-/g, '/');
         }
 
+        function normalizeArabicValue(value) {
+            return String(value || '')
+                .trim()
+                .replace(/[إأآا]/g, 'ا')
+                .replace(/ى/g, 'ي')
+                .replace(/ة/g, 'ه')
+                .replace(/\s+/g, ' ')
+                .toLowerCase();
+        }
+
+        function normalizeExecutionPlace(value) {
+            const raw = String(value || '').trim();
+            const v = normalizeArabicValue(raw);
+            if (!v) return DEFAULT_EXECUTION_PLACE;
+            if (v.includes('جامعه نايف') || v.includes('نايف العربيه') || v.includes('مقر الجامعه') || v.includes('مقر الجامعة')) return 'مقر الجامعة';
+            return raw;
+        }
+
+        function normalizePeriod(value) {
+            const v = normalizeArabicValue(value);
+            if (['ص', '1', 'الصبح', 'صباح', 'صباحي'].includes(v)) return 'صباحي';
+            if (['م', '2', 'مساء', 'المساء', 'مساءي', 'مسائي'].includes(v)) return 'مسائي';
+            return String(value || DDL.period[0]).trim();
+        }
+
+        function normalizeFloor(value) {
+            const v = normalizeArabicValue(value).replace(/ /g, '');
+            if (['1', 'الاول', 'اول'].includes(v)) return 'الأول';
+            if (['2', 'الثاني', 'ثاني'].includes(v)) return 'الثاني';
+            if (['3', 'الثالث', 'ثالث'].includes(v)) return 'الثالث';
+            if (['0', 'ارضي', 'الارضي'].includes(v)) return 'الأرضي';
+            return String(value || DDL.floor[0]).trim();
+        }
+
+        function normalizeStatus(value) {
+            const v = normalizeArabicValue(value);
+            if (v === 'مؤكد' || v === 'موكد') return 'جديدة';
+            if (v === 'قيد التقدم') return 'مستمرة';
+            return String(value || DDL.status[0]).trim();
+        }
+
+        function getWeekNumberFromDate(dateStr) {
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return '';
+            const temp = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const dayNum = temp.getUTCDay() || 7;
+            temp.setUTCDate(temp.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(temp.getUTCFullYear(), 0, 1));
+            return Math.ceil((((temp - yearStart) / 86400000) + 1) / 7);
+        }
+
+        function updateWeekNumberFromRows() {
+            const dates = rows.map(r => r.s).filter(Boolean).sort();
+            const week = dates.length ? getWeekNumberFromDate(dates[0]) : getWeekNumberFromDate(new Date().toISOString().slice(0,10));
+            if (week) document.getElementById('w-id').value = week;
+        }
+
+        function getSelectedOwner() {
+            return document.getElementById('owner-select').value || '';
+        }
+
+        function validateOwnerSelection() {
+            if (!getSelectedOwner()) {
+                showToast('اختر الموظف المسؤول أولاً', 'error');
+                document.getElementById('owner-select').focus();
+                return false;
+            }
+            return true;
+        }
+
         try { const fontCairo = new FontFace('Cairo', 'url(https://fonts.gstatic.com/s/cairo/v28/SLXgc1nY6HkvangtZmpQdkhzfH5lkSs2SgRjCAGMQ1z0hGA-W1M.woff2)'); document.fonts.add(fontCairo); fontCairo.load(); } catch(e) {}
 
         function loadDefaultLogo() {
@@ -80,27 +151,7 @@
         document.addEventListener('DOMContentLoaded', () => { addRow(); initWeekNumber(); loadDefaultLogo(); loadMemory(); loadIntroSettings(); checkShareSupport(); });
 
         // --- 2. UI Logic ---
-        function initWeekNumber() { try { const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); const weeks = Object.keys(archive).map(Number).filter(n => !isNaN(n) && n > 0); let maxWeek = 0; if (weeks.length > 0) maxWeek = Math.max(...weeks); document.getElementById('w-id').value = maxWeek + 1; } catch(e) {} }
-        function showPage(pageId) { document.querySelectorAll('.page-container').forEach(el => el.classList.remove('active')); document.getElementById('page-' + pageId).classList.add('active'); if(pageId === 'archive') refreshArchiveView(); }
-        function resetAndShowGenerator() { if(rows.length > 1 && !confirm("هل تريد بدء جدول جديد؟")) return; clearCurrentData(); showPage('generator'); document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active')); document.querySelector('.nav-tab').classList.add('active'); }
-        function clearCurrentData() { rows = []; document.getElementById('rows-box').innerHTML = ''; addRow(); updateIdx(); showToast("تم مسح البيانات", 'info'); }
-        function selectTemplate(id) { currentTemplate = id; document.querySelectorAll('.template-thumb').forEach(el => el.classList.remove('selected')); document.getElementById('tpl-' + id).classList.add('selected'); }
-        function toggleLoader(show, text = "جاري المعالجة...") { const el = document.getElementById('loader'); document.getElementById('loader-text').innerText = text; if(show) { el.classList.remove('hidden'); el.classList.add('flex'); } else { el.classList.add('hidden'); el.classList.remove('flex'); } }
-
-        function loadMemory() { const m = localStorage.getItem(MEMORY_KEY); if(m) lastUsed = JSON.parse(m); }
-        function saveMemory(key, val) { lastUsed[key] = val; localStorage.setItem(MEMORY_KEY, JSON.stringify(lastUsed)); }
-
-        function loadIntroSettings() {
-            try {
-                const saved = JSON.parse(localStorage.getItem(INTRO_KEY) || '{}');
-                const modeEl = document.getElementById('intro-mode');
-                const customEl = document.getElementById('intro-custom');
-                if (!modeEl || !customEl) return;
-                modeEl.value = saved.mode || 'default';
-                customEl.value = saved.customText || '';
-                handleIntroModeChange(false);
-            } catch(e) {}
-        }
+        function initWeekNumber() { updateWeekNumberFromRows(); }
 
         function saveIntroSettings() {
             const modeEl = document.getElementById('intro-mode');
@@ -175,7 +226,18 @@
             document.getElementById('rows-box').appendChild(el);
         }
         
-        function upd(id, k, v) { let o = rows.find(x => x.id === id); if(o) o[k] = v; saveMemory(k, v); }
+        function upd(id, k, v) {
+            let o = rows.find(x => x.id === id);
+            if(o) {
+                if (k === 'loc') v = normalizeExecutionPlace(v);
+                if (k === 'p') v = normalizePeriod(v);
+                if (k === 'f') v = normalizeFloor(v);
+                if (k === 'st') v = normalizeStatus(v);
+                o[k] = v;
+                if (k === 's') updateWeekNumberFromRows();
+            }
+            saveMemory(k, v);
+        }
         function delRow(id) { rows = rows.filter(x => x.id !== id); document.getElementById(`r-${id}`).remove(); updateIdx(); if (rows.length === 0) addRow(); }
         function updateIdx() { document.querySelectorAll('.idx').forEach((n, i) => n.innerText = i+1); }
 
@@ -187,7 +249,7 @@
 
         // --- 3. Excel ---
         function dlTpl() {
-            const sample = ["إدارة الحشود وتأمين الفعاليات الكبرى", "المملكة العربية السعودية", "2026-04-19", "2026-04-23", "جديدة", "نايف الشهراني", "LAB 1", "الثاني", "صباحي"];
+            const sample = ["إدارة الحشود وتأمين الفعاليات الكبرى", "مقر الجامعة", "2026-04-19", "2026-04-23", "جديدة", "نايف الشهراني", "LAB 1", "الثاني", "صباحي"];
             const ws = XLSX.utils.aoa_to_sheet([[KEYS.n, KEYS.loc, KEYS.s, KEYS.e, KEYS.st, KEYS.sp, KEYS.r, KEYS.f, KEYS.p], sample]);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Template");
@@ -208,17 +270,18 @@
                     json.forEach(row => {
                         addRow({
                             n: row[KEYS.n] || '',
-                            loc: row[KEYS.loc] || DEFAULT_EXECUTION_PLACE,
+                            loc: normalizeExecutionPlace(row[KEYS.loc]),
                             s: parseExcelDate(row[KEYS.s]),
                             e: parseExcelDate(row[KEYS.e]),
-                            st: row[KEYS.st] || DDL.status[0],
+                            st: normalizeStatus(row[KEYS.st]),
                             sp: row[KEYS.sp] || DDL.sup[0],
                             r: row[KEYS.r] || DDL.room[0],
-                            f: row[KEYS.f] || DDL.floor[0],
-                            p: row[KEYS.p] || DDL.period[0]
+                            f: normalizeFloor(row[KEYS.f]),
+                            p: normalizePeriod(row[KEYS.p])
                         });
                     });
                     updateIdx();
+                    updateWeekNumberFromRows();
                     showToast(`تم استيراد ${rows.length} أنشطة تدريبية`, 'success');
                     e.target.value = '';
                 } catch(err) { showToast("خطأ في قراءة الملف: " + err.message, 'error'); }
@@ -227,36 +290,48 @@
         }
 
         // --- 4. Archive ---
-        function autoSave() { try { const week = document.getElementById('w-id').value; const owner = document.getElementById('owner-select').value; const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); archive[week] = { rows: rows, owner: owner }; localStorage.setItem(ARCH_KEY, JSON.stringify(archive)); } catch(e) {} }
-        function loadFromArchive(week) { const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); if(archive[week]) { const data = archive[week]; rows = []; document.getElementById('rows-box').innerHTML = ''; (data.rows || data).forEach(r => addRow(r)); document.getElementById('w-id').value = week; document.getElementById('owner-select').value = data.owner || "نايف الشهراني"; updateIdx(); showPage('generator'); showToast(`تم تحميل الأسبوع ${week}`, 'info'); } }
+        function autoSave() { try { const week = document.getElementById('w-id').value; const owner = getSelectedOwner(); const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); archive[week] = { rows: rows, owner: owner }; localStorage.setItem(ARCH_KEY, JSON.stringify(archive)); } catch(e) {} }
+        function loadFromArchive(week) { const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); if(archive[week]) { const data = archive[week]; rows = []; document.getElementById('rows-box').innerHTML = ''; (data.rows || data).forEach(r => addRow(r)); document.getElementById('w-id').value = week; document.getElementById('owner-select').value = data.owner || ""; updateIdx(); showPage('generator'); showToast(`تم تحميل الأسبوع ${week}`, 'info'); } }
         function deleteFromArchive(week) { if(confirm(`حذف أرشيف الأسبوع ${week}؟`)) { const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); delete archive[week]; localStorage.setItem(ARCH_KEY, JSON.stringify(archive)); refreshArchiveView(); initWeekNumber(); showToast("تم الحذف", 'info'); } }
         function refreshArchiveView() { const container = document.getElementById('archive-list'); const noData = document.getElementById('no-archive'); const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); const keys = Object.keys(archive); container.innerHTML = ''; if(keys.length === 0) { noData.classList.remove('hidden'); return; } noData.classList.add('hidden'); keys.sort((a,b) => b - a).forEach(key => { const entry = archive[key]; const owner = entry.owner || 'غير محدد'; const count = (entry.rows || entry).length; const div = document.createElement('div'); div.className = "bg-slate-50 p-4 rounded-lg border hover:shadow-md transition-shadow"; div.innerHTML = `<div class="flex justify-between items-center mb-2"><h4 class="font-bold text-[#2c6060] text-lg">الأسبوع ${key}</h4><span class="text-xs bg-slate-200 px-2 py-1 rounded">${count} دورات</span></div><div class="text-xs text-slate-500 mb-3">بواسطة: <span class="font-bold text-slate-700">${owner}</span></div><div class="flex gap-2 mt-4"><button onclick="loadFromArchive('${key}')" class="flex-1 btn-main text-xs">📝 تعديل</button><button onclick="deleteFromArchive('${key}')" class="btn-outline text-xs text-red-500 border-red-500 hover:bg-red-50">🗑️ حذف</button></div>`; container.appendChild(div); }); }
 
         // --- 5. Save Logic ---
         
+        async function generateScreenZipBlob(valid, week) {
+            const stats = getStats(valid);
+            const zip = new JSZip();
+            const chunksS = chunk(valid, 4);
+            for(let i=0; i<chunksS.length; i++) {
+                const canvas = document.createElement('canvas'); canvas.width = 2160; canvas.height = 3840;
+                const ctx = canvas.getContext('2d'); drawScreenCard(ctx, chunksS[i], stats, i+1, chunksS.length, i*4, logoImage);
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+                zip.file('Week-' + week + '-Screen-' + (i+1) + '.jpg', blob);
+            }
+            return zip.generateAsync({type: "blob"});
+        }
+
         async function startScreenSave() {
+            if (!validateOwnerSelection()) return;
             const valid = rows.filter(x => x.n.trim() !== ""); if(valid.length === 0) { showToast("لا توجد بيانات!", 'error'); return; }
             toggleLoader(true, "جاري التوليد...");
             try {
                 if(document.fonts && document.fonts.ready) await document.fonts.ready;
-                autoSave(); const week = document.getElementById('w-id').value; const stats = getStats(valid); const zip = new JSZip();
-                const chunksS = chunk(valid, 4); 
-                for(let i=0; i<chunksS.length; i++) { 
-                    const canvas = document.createElement('canvas'); canvas.width = 2160; canvas.height = 3840; 
-                    const ctx = canvas.getContext('2d'); drawScreenCard(ctx, chunksS[i], stats, i+1, chunksS.length, i*4, logoImage); 
-                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95)); zip.file(`Week-${week}-Screen-${i+1}.jpg`, blob); 
-                }
-                const content = await zip.generateAsync({type: "blob"});
-                lastZipBlob = content; 
-                saveAs(content, `NFDP_Week_${week}_Screens.zip`); showToast("تم الحفظ!", 'success');
+                updateWeekNumberFromRows();
+                autoSave();
+                const week = document.getElementById('w-id').value;
+                const content = await generateScreenZipBlob(valid, week);
+                lastZipBlob = content;
+                saveAs(content, 'NFDP_Week_' + week + '_Screens.zip'); showToast("تم الحفظ!", 'success');
             } catch (err) { console.error(err); showToast("خطأ: " + err.message, 'error'); } finally { toggleLoader(false); }
         }
 
         async function startAgentReport() {
+            if (!validateOwnerSelection()) return;
             const valid = rows.filter(x => x.n.trim() !== ""); if(valid.length === 0) { showToast("لا توجد بيانات!", 'error'); return; }
             toggleLoader(true, "جاري التوليد...");
             try {
                 if(document.fonts && document.fonts.ready) await document.fonts.ready;
+                updateWeekNumberFromRows();
                 autoSave(); const week = document.getElementById('w-id').value; const stats = getStats(valid);
                 const canvas = document.createElement('canvas'); canvas.width = 1080; canvas.height = 1920; const ctx = canvas.getContext('2d');
                 drawAgentReport(ctx, valid, stats, logoImage);
@@ -275,12 +350,72 @@
             btnReport.classList.remove('hidden'); 
         }
 
+        function splitBase64Lines(base64) {
+            return base64.match(/.{1,76}/g).join('\r\n');
+        }
+
+        async function blobToBase64(blob) {
+            const buffer = await blob.arrayBuffer();
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            const chunkSize = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+            }
+            return btoa(binary);
+        }
+
+        function encodeMailHeader(text) {
+            return '=?UTF-8?B?' + btoa(unescape(encodeURIComponent(text))) + '?=';
+        }
+
+        async function createScreenEml(zipBlob, week) {
+            const boundary = '----NAUSS-SCHEDULE-' + Date.now();
+            const recipients = SCREEN_EMAIL_RECIPIENTS.join(', ');
+            const subject = 'جدول الدورات التدريبية للأسبوع ' + week + ' - شاشة مدخل المبنى';
+            const body = '<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.8"><p>الزملاء الكرام،</p><p>مرفق لكم ملف صور جدول الدورات التدريبية للأسبوع ' + week + '، لاستخدامها في شاشة مدخل المبنى.</p><p>مع التحية،</p><p>إدارة عمليات التدريب</p></div>';
+            const zipBase64 = splitBase64Lines(await blobToBase64(zipBlob));
+            const fileName = 'NFDP_Week_' + week + '_Screens.zip';
+            const eml = [
+                'To: ' + recipients,
+                'Subject: ' + encodeMailHeader(subject),
+                'MIME-Version: 1.0',
+                'Content-Type: multipart/mixed; boundary="' + boundary + '"',
+                '',
+                '--' + boundary,
+                'Content-Type: text/html; charset=UTF-8',
+                'Content-Transfer-Encoding: 8bit',
+                '',
+                body,
+                '',
+                '--' + boundary,
+                'Content-Type: application/zip; name="' + fileName + '"',
+                'Content-Transfer-Encoding: base64',
+                'Content-Disposition: attachment; filename="' + fileName + '"',
+                '',
+                zipBase64,
+                '',
+                '--' + boundary + '--'
+            ].join('\r\n');
+            return new Blob([eml], { type: 'message/rfc822;charset=utf-8' });
+        }
+
         async function shareScreenImages() {
-            if(!lastZipBlob) { showToast("يرجى توليد صور العرض أولاً", 'info'); return; }
-            const file = new File([lastZipBlob], "training_screens.zip", { type: "application/zip" });
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                try { await navigator.share({ files: [file], title: 'جدول العرض', text: 'جداول الدورات التدريبية' }); } catch (error) { console.log('Share cancelled', error); }
-            } else { showToast("جهازك لا يدعم مشاركة ملفات ZIP مباشرة", 'error'); }
+            if (!validateOwnerSelection()) return;
+            const valid = rows.filter(x => x.n.trim() !== ""); if(valid.length === 0) { showToast("لا توجد بيانات!", 'error'); return; }
+            toggleLoader(true, "جاري تجهيز مسودة البريد...");
+            try {
+                if(document.fonts && document.fonts.ready) await document.fonts.ready;
+                updateWeekNumberFromRows();
+                autoSave();
+                const week = document.getElementById('w-id').value;
+                const zipBlob = await generateScreenZipBlob(valid, week);
+                lastZipBlob = zipBlob;
+                const emlBlob = await createScreenEml(zipBlob, week);
+                saveAs(emlBlob, 'Screen_Schedule_Week_' + week + '.eml');
+                showToast("تم تنزيل مسودة البريد", 'success');
+            } catch (error) { console.error(error); showToast("خطأ في إنشاء مسودة البريد", 'error'); }
+            finally { toggleLoader(false); }
         }
 
         async function shareAgentReport() {
