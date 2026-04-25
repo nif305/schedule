@@ -650,6 +650,30 @@
             return parsed;
         }
 
+
+        function isBlankScheduleRow(row) {
+            if (!row) return true;
+            return !String(row.n || '').trim() &&
+                   !String(row.s || '').trim() &&
+                   !String(row.e || '').trim();
+        }
+
+        function removeBlankDefaultRows() {
+            rows = rows.filter(row => !isBlankScheduleRow(row));
+            const box = document.getElementById('rows-box');
+            if (box) {
+                [...box.children].forEach(child => {
+                    const input = child.querySelector('input[type="text"]');
+                    const dateInputs = child.querySelectorAll('input[type="date"]');
+                    const hasName = input && String(input.value || '').trim();
+                    const hasStart = dateInputs[0] && String(dateInputs[0].value || '').trim();
+                    const hasEnd = dateInputs[1] && String(dateInputs[1].value || '').trim();
+                    if (!hasName && !hasStart && !hasEnd) child.remove();
+                });
+            }
+            updateIdx();
+        }
+
         function applySmartPaste(mode = 'replace') {
             const txt = document.getElementById('smart-paste-text');
             const pastedRows = parseSmartPasteText(txt?.value || '');
@@ -663,6 +687,8 @@
                 rows = [];
                 const box = document.getElementById('rows-box');
                 if (box) box.innerHTML = '';
+            } else {
+                removeBlankDefaultRows();
             }
 
             pastedRows.forEach(row => addRow(row));
