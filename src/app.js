@@ -38,7 +38,8 @@
         const KEYS = { n: "اسم النشاط التدريبي", loc: "مكان التنفيذ", s: "تاريخ البدء", e: "تاريخ الانتهاء", st: "الحالة", sp: "اسم منسق التدريب", r: "القاعة", f: "الطابق", p: "الفترة" };
         const INTERNAL_EXECUTION_KEYWORDS = ["السعودية", "المملكة", "الرياض", "جدة", "الدمام", "الجامعة", "جامعة نايف", "نايف"];
         const DEFAULT_EXECUTION_PLACE = "مقر الجامعة";
-        const SCREEN_EMAIL_RECIPIENTS = [];
+        const SCREEN_EMAIL_RECIPIENTS = ["KAhmad@nauss.edu.sa", "AMohammad@nauss.edu.sa", "WAlsaleem@nauss.edu.sa"];
+        const AGENT_REPORT_RECIPIENTS = ["T-AAlmargan@nauss.edu.sa"];
         const ARCH_KEY = "nfdp_archive_v42";
         const MEMORY_KEY = "nfdp_memory_v1";
         const INTRO_KEY = "nfdp_intro_settings_v1";
@@ -325,6 +326,16 @@
             } catch (err) { console.error(err); showToast("خطأ: " + err.message, 'error'); } finally { toggleLoader(false); }
         }
 
+        async function generateAgentReportBlob(valid) {
+            const stats = getStats(valid);
+            const canvas = document.createElement('canvas');
+            canvas.width = 1080;
+            canvas.height = 1920;
+            const ctx = canvas.getContext('2d');
+            drawAgentReport(ctx, valid, stats, logoImage);
+            return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+        }
+
         async function startAgentReport() {
             if (!validateOwnerSelection()) return;
             const valid = rows.filter(x => x.n.trim() !== ""); if(valid.length === 0) { showToast("لا توجد بيانات!", 'error'); return; }
@@ -332,11 +343,10 @@
             try {
                 if(document.fonts && document.fonts.ready) await document.fonts.ready;
                 updateWeekNumberFromRows();
-                autoSave(); const week = document.getElementById('w-id').value; const stats = getStats(valid);
-                const canvas = document.createElement('canvas'); canvas.width = 1080; canvas.height = 1920; const ctx = canvas.getContext('2d');
-                drawAgentReport(ctx, valid, stats, logoImage);
-                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-                lastBlob = blob; 
+                autoSave();
+                const week = document.getElementById('w-id').value;
+                const blob = await generateAgentReportBlob(valid);
+                lastBlob = blob;
                 saveAs(blob, `NFDP_Week_${week}_Agent_Report.jpg`);
                 showToast("تم التوليد!", 'success');
             } catch (err) { console.error(err); showToast("خطأ: " + err.message, 'error'); } finally { toggleLoader(false); }
@@ -400,6 +410,38 @@
             return new Blob([eml], { type: 'message/rfc822;charset=utf-8' });
         }
 
+
+
+        async function createAgentReportEml(reportBlob, week) {
+            const boundary = '----NAUSS-AGENT-REPORT-' + Date.now();
+            const subject = 'تقرير جدول الدورات التدريبية للأسبوع ' + week;
+            const body = '<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.8"><p>سعادة وكيل الجامعة للتدريب سلّمه الله،</p><p>مرفق لسعادتكم تقرير جدول الدورات التدريبية للأسبوع ' + week + '.</p><p>وتفضلوا بقبول فائق الاحترام والتقدير.</p><p>إدارة عمليات التدريب</p></div>';
+            const reportBase64 = splitBase64Lines(await blobToBase64(reportBlob));
+            const fileName = 'NFDP_Week_' + week + '_Agent_Report.jpg';
+            const eml = [
+                'To: ' + AGENT_REPORT_RECIPIENTS.join(', '),
+                'Subject: ' + encodeMailHeader(subject),
+                'MIME-Version: 1.0',
+                'Content-Type: multipart/mixed; boundary="' + boundary + '"',
+                '',
+                '--' + boundary,
+                'Content-Type: text/html; charset=UTF-8',
+                'Content-Transfer-Encoding: 8bit',
+                '',
+                body,
+                '',
+                '--' + boundary,
+                'Content-Type: image/jpeg; name="' + fileName + '"',
+                'Content-Transfer-Encoding: base64',
+                'Content-Disposition: attachment; filename="' + fileName + '"',
+                '',
+                reportBase64,
+                '',
+                '--' + boundary + '--'
+            ].join('\r\n');
+            return new Blob([eml], { type: 'message/rfc822;charset=utf-8' });
+        }
+
         async function shareScreenImages() {
             if (!validateOwnerSelection()) return;
             const valid = rows.filter(x => x.n.trim() !== ""); if(valid.length === 0) { showToast("لا توجد بيانات!", 'error'); return; }
@@ -419,11 +461,21 @@
         }
 
         async function shareAgentReport() {
-            if(!lastBlob) { showToast("يرجى توليد تقرير الوكيل أولاً", 'info'); return; }
-            const file = new File([lastBlob], "report.jpg", { type: "image/jpeg" });
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                try { await navigator.share({ files: [file], title: 'تقرير الوكيل', text: 'جدول الدورات التدريبية' }); } catch (error) { console.log('Share cancelled', error); }
-            } else { showToast("المتصفح لا يدعم المشاركة", 'error'); }
+            if (!validateOwnerSelection()) return;
+            const valid = rows.filter(x => x.n.trim() !== ""); if(valid.length === 0) { showToast("لا توجد بيانات!", 'error'); return; }
+            toggleLoader(true, "جاري تجهيز مسودة بريد الوكيل...");
+            try {
+                if(document.fonts && document.fonts.ready) await document.fonts.ready;
+                updateWeekNumberFromRows();
+                autoSave();
+                const week = document.getElementById('w-id').value;
+                const reportBlob = await generateAgentReportBlob(valid);
+                lastBlob = reportBlob;
+                const emlBlob = await createAgentReportEml(reportBlob, week);
+                saveAs(emlBlob, 'Agent_Report_Week_' + week + '.eml');
+                showToast("تم تنزيل مسودة بريد الوكيل", 'success');
+            } catch (error) { console.error(error); showToast("خطأ في إنشاء مسودة بريد الوكيل", 'error'); }
+            finally { toggleLoader(false); }
         }
 
         // --- 6. Canvas Drawing ---
