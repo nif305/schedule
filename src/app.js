@@ -102,6 +102,38 @@
             return row;
         }
 
+
+        function extractTrainingRoom(value) {
+            const raw = String(value || '').trim();
+            if (!raw) return '';
+            const normalized = raw.replace(/\s+/g, ' ');
+            const labMatch = normalized.match(/LAB\s*-?\s*(\d+)/i);
+            if (labMatch) return `LAB ${labMatch[1]}`;
+            const classMatch = normalized.match(/CLASS\s*-?\s*(\d+)/i);
+            if (classMatch) return `CLASS ${classMatch[1]}`;
+            return raw.replace(/^برج التدريب\s*-\s*/i, '').trim();
+        }
+
+        function inferFloorFromRoom(room, fallback = '') {
+            const r = String(room || '').toUpperCase();
+            if (r.includes('LAB')) return 'الثاني';
+            if (r.includes('CLASS')) return 'الأول';
+            return fallback || '';
+        }
+
+        function isLmsDetailLine(parts) {
+            const first = normalizeArabicValue(parts[0] || '');
+            return first.startsWith('المجال التدريبي') ||
+                   first.startsWith('معرف التدريب') ||
+                   first.startsWith('التصنيف') ||
+                   first.startsWith('الوقت المفضل');
+        }
+
+        function extractPreferredPeriodFromText(line) {
+            const match = String(line || '').match(/الوقت\s*المفضل\s*:\s*([^\t|,;]+)/i);
+            return match ? normalizePeriod(match[1].trim()) : '';
+        }
+
         function shouldHideFloorValue(value) {
             const v = normalizeArabicValue(value);
             return v === 'خارجي' || v === 'خارج الرياض' || v === 'خارج المملكه' || v === 'خارج المملكة';
@@ -372,8 +404,8 @@
                 e: d.e || d[KEYS.e] || "",
                 st: normalizeStatus(d.st || d[KEYS.st] || lastUsed.st || DDL.status[0]),
                 sp: d.sp || d[KEYS.sp] || lastUsed.sp || DDL.sup[0],
-                r: d.r || d[KEYS.r] || lastUsed.r || DDL.room[0],
-                f: normalizeFloor(d.f || d[KEYS.f] || lastUsed.f || DDL.floor[0]),
+                r: extractTrainingRoom(d.r || d[KEYS.r] || lastUsed.r || DDL.room[0]),
+                f: normalizeFloor(d.f || d[KEYS.f] || inferFloorFromRoom(d.r || d[KEYS.r], lastUsed.f || DDL.floor[0])),
                 p: normalizePeriod(d.p || d[KEYS.p] || lastUsed.p || DDL.period[0])
             });
         }
@@ -528,22 +560,29 @@
         }
 
         function buildSmartPasteRow(parts) {
-            const clean = parts.map(v => String(v || '').trim()).filter((v, idx, arr) => v || arr.length >= 9);
-            if (clean.length < 2 || isSmartPasteHeader(clean)) return null;
+            const clean = parts.map(v => String(v || '').trim());
+            if (clean.length < 6 || isSmartPasteHeader(clean) || isLmsDetailLine(clean)) return null;
 
-            const cells = [...clean];
-            while (cells.length < 9) cells.push('');
+            const startDate = parseExcelDate(clean[2]) || clean[2] || '';
+            const endDate = parseExcelDate(clean[3]) || clean[3] || '';
+            if (!startDate || !endDate) return null;
+
+            const loc = normalizeExecutionPlace(clean[1]);
+            const rawRoom = clean[6] || '';
+            const room = extractTrainingRoom(rawRoom);
+            const floor = clean[7] ? normalizeFloor(clean[7]) : inferFloorFromRoom(room, DDL.floor[0]);
+            const period = clean[8] ? normalizePeriod(clean[8]) : DDL.period[0];
 
             return applyExecutionPlaceRules({
-                n: cells[0] || '',
-                loc: normalizeExecutionPlace(cells[1]),
-                s: parseExcelDate(cells[2]) || cells[2] || '',
-                e: parseExcelDate(cells[3]) || cells[3] || '',
-                st: normalizeStatus(cells[4]),
-                sp: cells[5] || DDL.sup[0],
-                r: cells[6] || DDL.room[0],
-                f: normalizeFloor(cells[7] || DDL.floor[0]),
-                p: normalizePeriod(cells[8] || DDL.period[0])
+                n: clean[0] || '',
+                loc,
+                s: startDate,
+                e: endDate,
+                st: normalizeStatus(clean[4]),
+                sp: clean[5] || DDL.sup[0],
+                r: room || DDL.room[0],
+                f: floor || DDL.floor[0],
+                p: period
             });
         }
 
@@ -556,6 +595,15 @@
 
             for (const line of lines) {
                 const parts = splitSmartPasteLine(line).map(x => x.trim());
+
+                const preferredPeriod = extractPreferredPeriodFromText(line);
+                if (preferredPeriod && parsed.length) {
+                    parsed[parsed.length - 1].p = preferredPeriod;
+                    continue;
+                }
+
+                if (isSmartPasteHeader(parts) || isLmsDetailLine(parts)) continue;
+
                 const row = buildSmartPasteRow(parts);
                 if (row && row.n) parsed.push(row);
             }
