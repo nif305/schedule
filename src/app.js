@@ -35,7 +35,9 @@
             type: ["داخلية", "دولية"]
         };
 
-        const KEYS = { n: "اسم الدورة", s: "بداية", e: "نهاية", r: "قاعة", f: "طابق", p: "فترة", st: "حالة", sp: "مشرف", t: "نوع" };
+        const KEYS = { n: "اسم النشاط التدريبي", loc: "مكان التنفيذ", s: "تاريخ البدء", e: "تاريخ الانتهاء", st: "الحالة", sp: "اسم منسق التدريب", r: "القاعة", f: "الطابق", p: "الفترة" };
+        const INTERNAL_EXECUTION_KEYWORDS = ["السعودية", "المملكة", "الرياض", "جدة", "الدمام", "الجامعة", "جامعة نايف", "نايف"];
+        const DEFAULT_EXECUTION_PLACE = "المملكة العربية السعودية";
         const ARCH_KEY = "nfdp_archive_v42";
         const MEMORY_KEY = "nfdp_memory_v1";
         const INTRO_KEY = "nfdp_intro_settings_v1";
@@ -127,9 +129,24 @@
 
         // الشعار الرسمي ثابت ويحمّل تلقائيًا من public/assets/logo-footer.png
 
+        function normalizeLegacyRow(d = {}) {
+            return {
+                id: d.id || Date.now() + Math.random(),
+                n: d.n || d[KEYS.n] || "",
+                loc: d.loc || d.place || d.executionPlace || d[KEYS.loc] || lastUsed.loc || DEFAULT_EXECUTION_PLACE,
+                s: d.s || d[KEYS.s] || "",
+                e: d.e || d[KEYS.e] || "",
+                st: d.st || d[KEYS.st] || lastUsed.st || DDL.status[0],
+                sp: d.sp || d[KEYS.sp] || lastUsed.sp || DDL.sup[0],
+                r: d.r || d[KEYS.r] || lastUsed.r || DDL.room[0],
+                f: d.f || d[KEYS.f] || lastUsed.f || DDL.floor[0],
+                p: d.p || d[KEYS.p] || lastUsed.p || DDL.period[0]
+            };
+        }
+
         function addRow(d = {}) { 
-            const id = Date.now() + Math.random(); 
-            const o = { id: id, n: d.n || "", s: d.s || "", e: d.e || "", r: d.r || lastUsed.r || DDL.room[0], f: d.f || lastUsed.f || DDL.floor[0], p: d.p || lastUsed.p || DDL.period[0], st: d.st || lastUsed.st || DDL.status[0], sp: d.sp || lastUsed.sp || DDL.sup[0], t: d.t || lastUsed.t || DDL.type[0] }; 
+            const o = normalizeLegacyRow(d);
+            if (!o.id) o.id = Date.now() + Math.random();
             rows.push(o); renderRow(o); 
         }
         
@@ -141,16 +158,16 @@
             el.innerHTML = `
                 <div class="grid grid-cols-12 gap-2 items-center">
                     <div class="col-span-1 text-center text-slate-300 font-bold text-xs idx">${rows.length}</div>
-                    <div class="col-span-11 md:col-span-4"><input type="text" placeholder="اسم الدورة" value="${o.n}" onchange="upd(${o.id},'n',this.value)" class="form-input border-transparent focus:border-[#2c6060]"></div>
-                    <div class="col-span-6 md:col-span-2"><select onchange="upd(${o.id},'t',this.value)" class="form-input text-xs">${opts(DDL.type, o.t)}</select></div>
+                    <div class="col-span-11 md:col-span-4"><input type="text" placeholder="اسم النشاط التدريبي" value="${o.n}" onchange="upd(${o.id},'n',this.value)" class="form-input border-transparent focus:border-[#2c6060]"></div>
+                    <div class="col-span-6 md:col-span-2"><input type="text" placeholder="مكان التنفيذ" value="${o.loc}" onchange="upd(${o.id},'loc',this.value)" class="form-input text-xs"></div>
                     <div class="col-span-6 md:col-span-2"><select onchange="upd(${o.id},'st',this.value)" class="form-input text-xs">${opts(DDL.status, o.st)}</select></div>
                     <div class="col-span-11 md:col-span-2"><select onchange="upd(${o.id},'sp',this.value)" class="form-input text-xs">${opts(DDL.sup, o.sp)}</select></div>
                     <div class="col-span-1 flex flex-col gap-1 items-center"><div class="w-6 h-6 flex items-center justify-center cursor-pointer bg-red-50 text-red-500 rounded hover:bg-red-100 text-sm font-bold" onclick="delRow(${o.id})">×</div></div>
                 </div>
                 <div class="grid grid-cols-12 gap-2 items-center mt-1">
                     <div class="hidden md:block col-span-1"></div>
-                    <div class="col-span-6 md:col-span-2"><input type="date" value="${o.s}" onchange="upd(${o.id},'s',this.value)" class="form-input text-xs"></div>
-                    <div class="col-span-6 md:col-span-2"><input type="date" value="${o.e}" onchange="upd(${o.id},'e',this.value)" class="form-input text-xs"></div>
+                    <div class="col-span-6 md:col-span-2"><input type="date" value="${o.s}" onchange="upd(${o.id},'s',this.value)" class="form-input text-xs" title="تاريخ البدء"></div>
+                    <div class="col-span-6 md:col-span-2"><input type="date" value="${o.e}" onchange="upd(${o.id},'e',this.value)" class="form-input text-xs" title="تاريخ الانتهاء"></div>
                     <div class="col-span-6 md:col-span-2"><select onchange="upd(${o.id},'r',this.value)" class="form-input text-xs">${opts(DDL.room, o.r)}</select></div>
                     <div class="col-span-6 md:col-span-2"><select onchange="upd(${o.id},'f',this.value)" class="form-input text-xs">${opts(DDL.floor, o.f)}</select></div>
                     <div class="col-span-12 md:col-span-2"><select onchange="upd(${o.id},'p',this.value)" class="form-input text-xs">${opts(DDL.period, o.p)}</select></div>
@@ -162,13 +179,49 @@
         function delRow(id) { rows = rows.filter(x => x.id !== id); document.getElementById(`r-${id}`).remove(); updateIdx(); if (rows.length === 0) addRow(); }
         function updateIdx() { document.querySelectorAll('.idx').forEach((n, i) => n.innerText = i+1); }
 
+        function isExternalExecution(place = "") {
+            const value = String(place || "").trim();
+            if (!value) return false;
+            return !INTERNAL_EXECUTION_KEYWORDS.some(keyword => value.includes(keyword));
+        }
+
         // --- 3. Excel ---
-        function dlTpl() { const sample = ["دورة تجريبية", "2023-10-01", "2023-10-05", "LAB 1", "الأرضي", "صباحي", "جديدة", "نايف الشهراني", "داخلية"]; const ws = XLSX.utils.aoa_to_sheet([[KEYS.n, KEYS.s, KEYS.e, KEYS.r, KEYS.f, KEYS.p, KEYS.st, KEYS.sp, KEYS.t], sample]); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Template"); XLSX.writeFile(wb, "NFDP_Template.xlsx"); showToast("تم تحميل القالب", 'success'); }
+        function dlTpl() {
+            const sample = ["إدارة الحشود وتأمين الفعاليات الكبرى", "المملكة العربية السعودية", "2026-04-19", "2026-04-23", "جديدة", "نايف الشهراني", "LAB 1", "الثاني", "صباحي"];
+            const ws = XLSX.utils.aoa_to_sheet([[KEYS.n, KEYS.loc, KEYS.s, KEYS.e, KEYS.st, KEYS.sp, KEYS.r, KEYS.f, KEYS.p], sample]);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Template");
+            XLSX.writeFile(wb, "NAUSS_Weekly_Schedule_Template.xlsx");
+            showToast("تم تحميل القالب", 'success');
+        }
         function rdExcel(e) {
             const f = e.target.files[0]; if(!f) return;
             const rd = new FileReader();
             rd.onload = function(ev) {
-                try { const data = new Uint8Array(ev.target.result); const workbook = XLSX.read(data, {type:'array', cellDates: true}); const sheet = workbook.Sheets[workbook.SheetNames[0]]; const json = XLSX.utils.sheet_to_json(sheet); document.getElementById('rows-box').innerHTML = ''; rows = []; json.forEach(row => { addRow({ n: row[KEYS.n] || '', s: parseExcelDate(row[KEYS.s]), e: parseExcelDate(row[KEYS.e]), r: row[KEYS.r] || DDL.room[0], f: row[KEYS.f] || DDL.floor[0], p: row[KEYS.p] || DDL.period[0], st: row[KEYS.st] || DDL.status[0], sp: row[KEYS.sp] || DDL.sup[0], t: row[KEYS.t] || DDL.type[0] }); }); updateIdx(); showToast(`تم استيراد ${rows.length} دورات`, 'success'); e.target.value = ''; } catch(err) { showToast("خطأ في قراءة الملف: " + err.message, 'error'); }
+                try {
+                    const data = new Uint8Array(ev.target.result);
+                    const workbook = XLSX.read(data, {type:'array', cellDates: true});
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const json = XLSX.utils.sheet_to_json(sheet);
+                    document.getElementById('rows-box').innerHTML = '';
+                    rows = [];
+                    json.forEach(row => {
+                        addRow({
+                            n: row[KEYS.n] || '',
+                            loc: row[KEYS.loc] || DEFAULT_EXECUTION_PLACE,
+                            s: parseExcelDate(row[KEYS.s]),
+                            e: parseExcelDate(row[KEYS.e]),
+                            st: row[KEYS.st] || DDL.status[0],
+                            sp: row[KEYS.sp] || DDL.sup[0],
+                            r: row[KEYS.r] || DDL.room[0],
+                            f: row[KEYS.f] || DDL.floor[0],
+                            p: row[KEYS.p] || DDL.period[0]
+                        });
+                    });
+                    updateIdx();
+                    showToast(`تم استيراد ${rows.length} أنشطة تدريبية`, 'success');
+                    e.target.value = '';
+                } catch(err) { showToast("خطأ في قراءة الملف: " + err.message, 'error'); }
             };
             rd.readAsArrayBuffer(f);
         }
@@ -333,7 +386,7 @@
             drawStatBox(bX, 'إجمالي', stats.t); bX += boxW + gap;
             drawStatBox(bX, 'جديدة', stats.n); bX += boxW + gap;
             drawStatBox(bX, 'مستمرة', stats.c); bX += boxW + gap;
-            drawStatBox(bX, 'دولية', stats.i);
+            drawStatBox(bX, 'خارجية', stats.i);
 
             y += boxH;
 
@@ -385,7 +438,7 @@
                 // Line 2: Details Right, Date Left
                 ctx.font = 'normal 16px Cairo';
                 ctx.fillStyle = '#64748b';
-                const details = `${item.t}  •  ${item.st}  •  ${item.r}`;
+                const details = `${item.st}  •  ${item.p}  •  ${item.loc}`;
                 ctx.textAlign = 'right';
                 ctx.fillText(details, W - 100, y + 58);
 
@@ -397,10 +450,13 @@
                 ctx.textAlign = 'left';
                 ctx.fillText(dateStr, 100, y + 58);
 
-                // Supervisor
-                ctx.fillStyle = UNI.supRed; ctx.font = 'bold 16px Cairo';
+                // Location and Coordinator
+                ctx.fillStyle = '#475569'; ctx.font = 'normal 15px Cairo';
                 ctx.textAlign = 'right';
-                ctx.fillText(`👤 ${item.sp}`, W - 100, y + 85);
+                ctx.fillText(`${item.f}  •  ${item.r}`, W - 100, y + 85);
+                ctx.fillStyle = UNI.supRed; ctx.font = 'bold 15px Cairo';
+                ctx.textAlign = 'left';
+                ctx.fillText(`👤 ${item.sp}`, 100, y + 85);
                 
                 y += cardH + 15;
             }
@@ -538,7 +594,7 @@
             else { ctx.strokeStyle = '#2c6060'; ctx.lineWidth = 4*sc; ctx.strokeRect(startX + (boxW + gap)*3, Y, boxW, boxH); ctx.fillStyle = '#2c6060'; }
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.font = `bold ${90*sc}px Cairo`; ctx.fillText(stats.i, startX + (boxW + gap)*3 + boxW/2, Y + boxH/2 - 25*sc);
-            ctx.font = `normal ${40*sc}px Cairo`; ctx.fillText('دولية', startX + (boxW + gap)*3 + boxW/2, Y + boxH/2 + 35*sc);
+            ctx.font = `normal ${40*sc}px Cairo`; ctx.fillText('خارجية', startX + (boxW + gap)*3 + boxW/2, Y + boxH/2 + 35*sc);
         }
 
         function drawFooter(ctx, W, H) {
@@ -589,7 +645,7 @@
             }
 
             const baseTitleSize = isScreen ? 65 : 40; const dateFontSize = isScreen ? 35 : 24; const gridH = isScreen ? 150 : 100; const supFontSize = isScreen ? 35 : 24; const gapSize = isScreen ? 25 : 15;
-            const fullTitle = c.n + (c.t === 'دولية' ? ' 🌍' : '');
+            const fullTitle = c.n + (isExternalExecution(c.loc) ? ' 🌍' : '');
             const result = wrapTextSmart(ctx, fullTitle, w - padding*2, 2, baseTitleSize);
             const titleLines = result.lines; const titleFontSize = result.fontSize; const lineHeight = result.lineHeight;
             const titleH = titleLines.length * lineHeight;
@@ -609,8 +665,9 @@
             else ctx.fillStyle = '#64748b';
             ctx.font = `normal ${dateFontSize}px Cairo`; ctx.fillText(`${c.s} - ${c.e}`, centerX, currentY + dateFontSize); currentY += dateFontSize + gapSize;
 
-            let gridStartX = x + padding; const boxW = (w - padding*2 - (20*sc*3)) / 4;
+            let gridStartX = x + padding; const boxGap = 20*sc; const boxW = (w - padding*2 - (boxGap*4)) / 5;
             const drawInfoBox = (label, value) => {
+                const displayValue = value || '-';
                 if (currentTemplate === 6) { ctx.fillStyle = 'rgba(1, 101, 100, 0.1)'; drawRoundedRect(ctx, gridStartX, currentY, boxW, gridH, 8*sc); ctx.fillStyle = UNI.green; }
                 else if (currentTemplate === 4) { ctx.fillStyle = '#f5f5f7'; drawRoundedRect(ctx, gridStartX, currentY, boxW, gridH, 15*sc); ctx.fillStyle = '#8e8e93'; }
                 else if(currentTemplate === 5) {
@@ -621,19 +678,23 @@
                 else { ctx.fillStyle = '#f8fafc'; drawRoundedRect(ctx, gridStartX, currentY, boxW, gridH, 10*sc); ctx.fillStyle = '#64748b'; }
                 
                 if (currentTemplate === 4) { ctx.font = `bold 30px Cairo`; ctx.fillText(label, gridStartX + boxW/2, currentY + gridH * 0.35); }
-                else { ctx.font = `normal ${(isScreen ? 24 : 16) * sc}px Cairo`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, gridStartX + boxW/2, currentY + gridH * 0.35); }
+                else { ctx.font = `normal ${(isScreen ? 23 : 16) * sc}px Cairo`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, gridStartX + boxW/2, currentY + gridH * 0.35); }
                 
-                ctx.fillStyle = cardText; ctx.font = `bold ${(isScreen ? 32 : 20) * sc}px Cairo`; ctx.fillText(value, gridStartX + boxW/2, currentY + gridH * 0.7);
-                gridStartX += boxW + (20*sc);
+                ctx.fillStyle = cardText; ctx.font = `bold ${(isScreen ? 30 : 20) * sc}px Cairo`;
+                let safeValue = String(displayValue);
+                while (ctx.measureText(safeValue).width > boxW - 24*sc && safeValue.length > 0) safeValue = safeValue.substring(0, safeValue.length - 1);
+                if (safeValue !== String(displayValue)) safeValue += '…';
+                ctx.fillText(safeValue, gridStartX + boxW/2, currentY + gridH * 0.7);
+                gridStartX += boxW + boxGap;
             };
             
-            if (currentTemplate === 4) { drawInfoBox('🏛️', c.r); drawInfoBox('🧱', c.f); drawInfoBox('⏰', c.p); drawInfoBox('⚡', c.st); }
-            else { drawInfoBox('القاعة', c.r); drawInfoBox('الطابق', c.f); drawInfoBox('الفترة', c.p); drawInfoBox('الحالة', c.st); }
+            if (currentTemplate === 4) { drawInfoBox('⚡', c.st); drawInfoBox('⏰', c.p); drawInfoBox('🌍', c.loc); drawInfoBox('🧱', c.f); drawInfoBox('🏛️', c.r); }
+            else { drawInfoBox('الحالة', c.st); drawInfoBox('الفترة', c.p); drawInfoBox('مكان التنفيذ', c.loc); drawInfoBox('الطابق', c.f); drawInfoBox('القاعة', c.r); }
             
             currentY += gridH + gapSize;
 
             ctx.fillStyle = UNI.supRed;
-            ctx.font = `normal ${supFontSize}px Cairo`; ctx.fillText(`المشرف: ${c.sp}`, centerX, currentY + supFontSize);
+            ctx.font = `normal ${supFontSize}px Cairo`; ctx.fillText(`اسم منسق التدريب: ${c.sp}`, centerX, currentY + supFontSize);
 
             const idxSize = (isScreen ? 24 : 12) * sc;
             if (currentTemplate === 6) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.beginPath(); ctx.arc(x + 50*sc, y + 50*sc, 25*sc, 0, 2 * Math.PI); ctx.fill(); ctx.fillStyle = '#ffffff'; }
@@ -647,5 +708,5 @@
             ctx.font = `bold ${idxSize}px Cairo`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(idx, x + 55*sc, y + 45*sc);
         }
 
-        function getStats(a) { return { t: a.length, n: a.filter(x=>x.st==='جديدة').length, c: a.filter(x=>x.st==='مستمرة').length, i: a.filter(x=>x.t==='دولية').length }; }
+        function getStats(a) { return { t: a.length, n: a.filter(x=>x.st==='جديدة').length, c: a.filter(x=>x.st==='مستمرة').length, i: a.filter(x=>x.st==='خارجية' || isExternalExecution(x.loc)).length }; }
         function chunk(a, s) { const r=[]; for(let i=0; i<a.length; i+=s) r.push(a.slice(i,i+s)); return r; }
