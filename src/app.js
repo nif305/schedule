@@ -154,6 +154,71 @@
         // --- 2. UI Logic ---
         function initWeekNumber() { updateWeekNumberFromRows(); }
 
+        function showPage(pageId) {
+            document.querySelectorAll('.page-container').forEach(el => el.classList.remove('active'));
+            const target = document.getElementById('page-' + pageId);
+            if (target) target.classList.add('active');
+            document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+            const tabs = document.querySelectorAll('.nav-tab');
+            if (pageId === 'archive' && tabs[1]) tabs[1].classList.add('active');
+            if (pageId === 'generator' && tabs[0]) tabs[0].classList.add('active');
+            if(pageId === 'archive') refreshArchiveView();
+        }
+
+        function resetAndShowGenerator() {
+            if(rows.length > 1 && !confirm("هل تريد بدء جدول جديد؟")) return;
+            clearCurrentData();
+            showPage('generator');
+        }
+
+        function clearCurrentData() {
+            rows = [];
+            const box = document.getElementById('rows-box');
+            if (box) box.innerHTML = '';
+            addRow();
+            updateIdx();
+            updateWeekNumberFromRows();
+            showToast("تم مسح البيانات", 'info');
+        }
+
+        function selectTemplate(id) {
+            currentTemplate = id;
+            document.querySelectorAll('.template-thumb').forEach(el => el.classList.remove('selected'));
+            const selected = document.getElementById('tpl-' + id);
+            if (selected) selected.classList.add('selected');
+        }
+
+        function toggleLoader(show, text = "جاري المعالجة...") {
+            const el = document.getElementById('loader');
+            const txt = document.getElementById('loader-text');
+            if (!el) return;
+            if (txt) txt.innerText = text;
+            if(show) { el.classList.remove('hidden'); el.classList.add('flex'); }
+            else { el.classList.add('hidden'); el.classList.remove('flex'); }
+        }
+
+        function loadMemory() {
+            try { const m = localStorage.getItem(MEMORY_KEY); if(m) lastUsed = JSON.parse(m); }
+            catch(e) { lastUsed = {}; }
+        }
+
+        function saveMemory(key, val) {
+            try { lastUsed[key] = val; localStorage.setItem(MEMORY_KEY, JSON.stringify(lastUsed)); }
+            catch(e) {}
+        }
+
+        function loadIntroSettings() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(INTRO_KEY) || '{}');
+                const modeEl = document.getElementById('intro-mode');
+                const customEl = document.getElementById('intro-custom');
+                if (!modeEl || !customEl) return;
+                modeEl.value = saved.mode || 'default';
+                customEl.value = saved.customText || '';
+                handleIntroModeChange(false);
+            } catch(e) {}
+        }
+
         function saveIntroSettings() {
             const modeEl = document.getElementById('intro-mode');
             const customEl = document.getElementById('intro-custom');
