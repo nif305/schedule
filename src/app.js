@@ -536,8 +536,18 @@
         async function createScreenEml(zipBlob, week) {
             const boundary = '----NAUSS-SCHEDULE-' + Date.now();
             const recipients = SCREEN_EMAIL_RECIPIENTS.join(', ');
-            const subject = 'جدول الدورات التدريبية للأسبوع ' + week + ' - شاشة مدخل المبنى';
-            const body = '<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.8"><p>الزملاء الكرام،</p><p>مرفق لكم ملف صور جدول الدورات التدريبية للأسبوع ' + week + '، لاستخدامها في شاشة مدخل المبنى.</p><p>مع التحية،</p><p>إدارة عمليات التدريب</p></div>';
+            const subject = 'تحديث صور جدول الدورات التدريبية الأسبوعي';
+            const body = '<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.8">' +
+                '<p>الزملاء الكرام،</p>' +
+                '<p>السلام عليكم ورحمة الله وبركاته،</p>' +
+                '<p>مرفق لكم صور جدول الدورات التدريبية للأسبوع ' + week + '، نأمل التكرم برفعها على شاشة مدخل المبنى، واستبدال النسخة السابقة بها، بما يضمن عرض الجدول المحدث للبرامج التدريبية المعتمدة.</p>' +
+                '<div dir="ltr" style="text-align:left;margin-top:18px">' +
+                '<p>Dear Colleagues,</p>' +
+                '<p>Attached are the updated images for week ' + week + ' training courses schedule. Kindly upload them to the building entrance display screen and replace the previous version to ensure that the latest approved training schedule is shown.</p>' +
+                '</div>' +
+                '<p>مع خالص الشكر والتقدير،</p>' +
+                '<p>فريق إدارة عمليات التدريب</p>' +
+                '</div>';
             const zipBase64 = splitBase64Lines(await blobToBase64(zipBlob));
             const fileName = 'NFDP_Week_' + week + '_Screens.zip';
             const eml = [
@@ -568,8 +578,18 @@
 
         async function createAgentReportEml(reportBlob, week) {
             const boundary = '----NAUSS-AGENT-REPORT-' + Date.now();
-            const subject = 'تقرير جدول الدورات التدريبية للأسبوع ' + week;
-            const body = '<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.8"><p>سعادة وكيل الجامعة للتدريب سلّمه الله،</p><p>مرفق لسعادتكم تقرير جدول الدورات التدريبية للأسبوع ' + week + '.</p><p>وتفضلوا بقبول فائق الاحترام والتقدير.</p><p>إدارة عمليات التدريب</p></div>';
+            const subject = 'جدول الدورات التدريبية للأسبوع القادم';
+            const body = '<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.8">' +
+                '<p>سعادة وكيل الجامعة للتدريب سلّمه الله،</p>' +
+                '<p>السلام عليكم ورحمة الله وبركاته،</p>' +
+                '<p>نرفق لسعادتكم تقرير جدول الدورات التدريبية للأسبوع ' + week + '، متضمنًا البرامج المجدولة، ومواقع التنفيذ، والحالة التشغيلية، ومنسقي التدريب، وذلك للاطلاع والتوجيه بما ترونه مناسبًا.</p>' +
+                '<div dir="ltr" style="text-align:left;margin-top:18px">' +
+                '<p>Your Excellency,</p>' +
+                '<p>Attached is the training courses schedule report for week ' + week + ', including the scheduled programmes, delivery locations, operational status, and assigned training coordinators, for your kind review and guidance as deemed appropriate.</p>' +
+                '</div>' +
+                '<p>وتفضلوا سعادتكم بقبول خالص الاحترام والتقدير،</p>' +
+                '<p>فريق إدارة عمليات التدريب<br>وكالة الجامعة للتدريب</p>' +
+                '</div>';
             const reportBase64 = splitBase64Lines(await blobToBase64(reportBlob));
             const fileName = 'NFDP_Week_' + week + '_Agent_Report.jpg';
             const eml = [
