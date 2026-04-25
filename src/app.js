@@ -2,14 +2,14 @@
         let rows = [];
         let currentTemplate = 1;
         let logoImage = null; 
-        let darkLogoImage = null; 
+        let darkLogoImage = null;
         let lastBlob = null; 
         let lastZipBlob = null; 
         let lastScreenSignature = null;
         let lastReportSignature = null; 
 
         const FIXED_LOGO_URL = "./public/assets/logo-footer.png";
-        const FIXED_DARK_LOGO_URL = "./public/assets/logo-footer-dark.png";
+        const DARK_LOGO_URL = "./public/assets/logo-footer-dark.png";
         const FALLBACK_LOGO_URL = "https://nauss.edu.sa/Style%20Library/ar-sa/Styles/images/home/logo-footer.png";
         
         const UNI = {
@@ -153,7 +153,15 @@
             img.src = FIXED_LOGO_URL;
         }
 
-        document.addEventListener('DOMContentLoaded', () => { addRow(); initWeekNumber(); loadDefaultLogo(); loadMemory(); loadIntroSettings(); bindStateInvalidationEvents(); checkShareSupport(); updateShareButtons(); });
+        function loadDarkLogo() {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => { darkLogoImage = img; };
+            img.onerror = () => { darkLogoImage = null; };
+            img.src = DARK_LOGO_URL;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => { addRow(); initWeekNumber(); loadDefaultLogo(); loadDarkLogo(); loadMemory(); loadIntroSettings(); bindStateInvalidationEvents(); checkShareSupport(); updateShareButtons(); });
 
         // --- 2. UI Logic ---
         function initWeekNumber() { updateWeekNumberFromRows(); }
@@ -674,6 +682,7 @@
         function drawRoundedRect(ctx, x, y, width, height, radius) {
             ctx.beginPath(); ctx.moveTo(x + radius, y); ctx.lineTo(x + width - radius, y); ctx.quadraticCurveTo(x + width, y, x + width, y + radius); ctx.lineTo(x + width, y + height - radius); ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height); ctx.lineTo(x + radius, y + height); ctx.quadraticCurveTo(x, y + height, x, y + height - radius); ctx.lineTo(x, y + radius); ctx.quadraticCurveTo(x, y, x + radius, y); ctx.closePath(); ctx.fill();
         }
+        
         // ---------------------------------------------------------
         // Agent Report Drawing (Cleaned)
         // ---------------------------------------------------------
@@ -836,10 +845,10 @@
             drawBackground(ctx, W, H);
 
             const headerPad = 60;
-            const outputLogo = (currentTemplate === 3 && darkLogoImage) ? darkLogoImage : logo;
+            const activeLogo = (currentTemplate === 3 && darkLogoImage) ? darkLogoImage : logo;
             const logoTargetW = 1000; 
             let logoH = 0;
-            if (outputLogo && outputLogo.width > 0) { logoH = logoTargetW * (outputLogo.height / outputLogo.width); }
+            if (activeLogo && activeLogo.width > 0) { logoH = logoTargetW * (activeLogo.height / activeLogo.width); }
             const titleFontSize = 100;
             const titleH = titleFontSize + 20;
             const totalHeaderH = headerPad + logoH + (logoH > 0 ? 40 : 0) + titleH + headerPad;
@@ -855,7 +864,7 @@
             }
 
             let currentDrawY = headerPad;
-            if (outputLogo && outputLogo.width > 0) { const logoX = (W - logoTargetW) / 2; ctx.drawImage(outputLogo, logoX, currentDrawY, logoTargetW, logoH); currentDrawY += logoH + 40; }
+            if (activeLogo && activeLogo.width > 0) { const logoX = (W - logoTargetW) / 2; ctx.drawImage(activeLogo, logoX, currentDrawY, logoTargetW, logoH); currentDrawY += logoH + 40; }
             
             if(currentTemplate === 6) ctx.fillStyle = '#ffffff';
             else if(currentTemplate === 2 || currentTemplate === 4) ctx.fillStyle = UNI.gold;
@@ -1003,7 +1012,12 @@
                 if(currentTemplate !== 3 && currentTemplate !== 5) { ctx.strokeStyle = cardBorder; ctx.lineWidth = currentTemplate === 2 ? 3 : 2*sc; ctx.beginPath(); ctx.moveTo(x + radius, y); ctx.arcTo(x + w, y, x + w, y + h, radius); ctx.arcTo(x + w, y + h, x, y + h, radius); ctx.arcTo(x, y + h, x, y, radius); ctx.arcTo(x, y, x + w, y, radius); ctx.stroke(); }
             }
 
-            const baseTitleSize = isScreen ? 65 : 40; const dateFontSize = isScreen ? 35 : 24; const gridH = isScreen ? 150 : 100; const supFontSize = isScreen ? 35 : 24; const gapSize = isScreen ? 25 : 15;
+            const isVibrantScreen = currentTemplate === 3 && isScreen;
+            const baseTitleSize = isVibrantScreen ? 70 : (isScreen ? 65 : 40);
+            const dateFontSize = isVibrantScreen ? 38 : (isScreen ? 35 : 24);
+            const gridH = isVibrantScreen ? 170 : (isScreen ? 150 : 100);
+            const supFontSize = isVibrantScreen ? 44 : (isScreen ? 35 : 24);
+            const gapSize = isVibrantScreen ? 42 : (isScreen ? 25 : 15);
             const fullTitle = c.n + (isExternalExecution(c.loc) ? ' 🌍' : '');
             const result = wrapTextSmart(ctx, fullTitle, w - padding*2, 2, baseTitleSize);
             const titleLines = result.lines; const titleFontSize = result.fontSize; const lineHeight = result.lineHeight;
@@ -1022,9 +1036,11 @@
             else if(currentTemplate === 2) ctx.fillStyle = UNI.greenMid;
             else if(currentTemplate === 5) ctx.fillStyle = '#555';
             else ctx.fillStyle = '#64748b';
-            ctx.font = `normal ${dateFontSize}px Cairo`; ctx.fillText(`${c.s} - ${c.e}`, centerX, currentY + dateFontSize); currentY += dateFontSize + gapSize;
+            const dateText = isVibrantScreen ? `${c.s} إلى ${c.e}` : `${c.s} - ${c.e}`;
+            ctx.font = `normal ${dateFontSize}px Cairo`; ctx.fillText(dateText, centerX, currentY + dateFontSize); currentY += dateFontSize + gapSize;
 
-            let gridStartX = x + padding; const boxGap = 20*sc; const boxW = (w - padding*2 - (boxGap*4)) / 5;
+            const infoPadding = isVibrantScreen ? 70*sc : padding;
+            let gridStartX = x + infoPadding; const boxGap = isVibrantScreen ? 28*sc : 20*sc; const boxW = (w - infoPadding*2 - (boxGap*4)) / 5;
             const drawInfoBox = (label, value) => {
                 const displayValue = value || '-';
                 if (currentTemplate === 6) { ctx.fillStyle = 'rgba(1, 101, 100, 0.1)'; drawRoundedRect(ctx, gridStartX, currentY, boxW, gridH, 8*sc); ctx.fillStyle = UNI.green; }
@@ -1037,9 +1053,9 @@
                 else { ctx.fillStyle = '#f8fafc'; drawRoundedRect(ctx, gridStartX, currentY, boxW, gridH, 10*sc); ctx.fillStyle = '#64748b'; }
                 
                 if (currentTemplate === 4) { ctx.font = `bold 30px Cairo`; ctx.fillText(label, gridStartX + boxW/2, currentY + gridH * 0.35); }
-                else { ctx.font = `normal ${(isScreen ? 23 : 16) * sc}px Cairo`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, gridStartX + boxW/2, currentY + gridH * 0.35); }
+                else { ctx.font = `normal ${isVibrantScreen ? 25*sc : (isScreen ? 23 : 16) * sc}px Cairo`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, gridStartX + boxW/2, currentY + gridH * 0.32); }
                 
-                ctx.fillStyle = cardText; ctx.font = `bold ${(isScreen ? 30 : 20) * sc}px Cairo`;
+                ctx.fillStyle = cardText; ctx.font = `bold ${isVibrantScreen ? 34*sc : (isScreen ? 30 : 20) * sc}px Cairo`;
                 let safeValue = String(displayValue);
                 while (ctx.measureText(safeValue).width > boxW - 24*sc && safeValue.length > 0) safeValue = safeValue.substring(0, safeValue.length - 1);
                 if (safeValue !== String(displayValue)) safeValue += '…';
@@ -1053,7 +1069,7 @@
             currentY += gridH + gapSize;
 
             ctx.fillStyle = UNI.supRed;
-            ctx.font = `normal ${supFontSize}px Cairo`; ctx.fillText(`اسم منسق التدريب: ${c.sp}`, centerX, currentY + supFontSize);
+            ctx.font = `${isVibrantScreen ? 'bold' : 'normal'} ${supFontSize}px Cairo`; ctx.fillText(`اسم منسق التدريب: ${c.sp}`, centerX, currentY + supFontSize);
 
             const idxSize = (isScreen ? 24 : 12) * sc;
             if (currentTemplate === 6) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.beginPath(); ctx.arc(x + 50*sc, y + 50*sc, 25*sc, 0, 2 * Math.PI); ctx.fill(); ctx.fillStyle = '#ffffff'; }
