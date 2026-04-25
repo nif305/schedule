@@ -1148,14 +1148,31 @@
                 const displayValue = value || '-';
                 ctx.fillStyle = '#f5f5f7';
                 drawRoundedRect(ctx, boxX, boxY, boxWLocal, boxHLocal, 18*sc);
-                drawLineIcon(iconType, boxX + boxWLocal / 2, boxY + boxHLocal * 0.22, isScreen ? 26 : 18, '#7b8794');
-                ctx.textAlign = 'center';
+
+                const labelFontSize = isScreen ? 18 : 11;
+                const valueFontSize = isScreen ? 28 : 18;
+                const iconSize = isScreen ? 22 : 14;
+                const iconGap = isScreen ? 10 : 6;
+                const headerY = boxY + boxHLocal * 0.32;
+                const headerColor = '#8e8e93';
+                const iconColor = '#C7B08C';
+
                 ctx.textBaseline = 'middle';
-                ctx.fillStyle = '#8e8e93';
-                ctx.font = `normal ${isScreen ? 20 : 12}px Cairo`;
-                ctx.fillText(label, boxX + boxWLocal / 2, boxY + boxHLocal * 0.45);
+                ctx.font = `normal ${labelFontSize}px Cairo`;
+                const labelWidth = ctx.measureText(label).width;
+                const groupWidth = labelWidth + iconGap + iconSize;
+                const groupRightX = boxX + (boxWLocal + groupWidth) / 2;
+                const iconCenterX = groupRightX - iconSize / 2;
+                const labelCenterX = groupRightX - iconSize - iconGap - labelWidth / 2;
+
+                drawLineIcon(iconType, iconCenterX, headerY, iconSize, iconColor);
+
+                ctx.fillStyle = headerColor;
+                ctx.textAlign = 'center';
+                ctx.fillText(label, labelCenterX, headerY);
+
                 ctx.fillStyle = cardText;
-                ctx.font = `bold ${isScreen ? 28 : 18}px Cairo`;
+                ctx.font = `bold ${valueFontSize}px Cairo`;
                 let safeValue = String(displayValue);
                 while (ctx.measureText(safeValue).width > boxWLocal - 36*sc && safeValue.length > 0) safeValue = safeValue.substring(0, safeValue.length - 1);
                 if (safeValue !== String(displayValue)) safeValue += '…';
@@ -1197,15 +1214,31 @@
             ctx.font = `${isVibrantScreen || isIosTemplate ? 'bold' : 'normal'} ${supFontSize}px Cairo`; ctx.fillText(`اسم منسق التدريب: ${c.sp}`, centerX, currentY + supFontSize);
 
             const idxSize = (isScreen ? 24 : 12) * sc;
-            if (currentTemplate === 6) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.beginPath(); ctx.arc(x + 50*sc, y + 50*sc, 25*sc, 0, 2 * Math.PI); ctx.fill(); ctx.fillStyle = '#ffffff'; }
-            else if (currentTemplate === 4) { ctx.fillStyle = '#f5f5f7'; ctx.beginPath(); ctx.arc(x + 50*sc, y + 50*sc, 25*sc, 0, 2 * Math.PI); ctx.fill(); ctx.fillStyle = '#8e8e93'; }
+            let badgeX = x + 50*sc;
+            let badgeY = y + 50*sc;
+            let badgeTextX = x + 55*sc;
+            let badgeTextY = y + 45*sc;
+            let badgeRadius = 25*sc;
+            if (currentTemplate === 6) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.beginPath(); ctx.arc(badgeX, badgeY, badgeRadius, 0, 2 * Math.PI); ctx.fill(); ctx.fillStyle = '#ffffff'; }
+            else if (currentTemplate === 4) {
+                badgeX = x + w - 55*sc;
+                badgeY = y + 50*sc;
+                badgeTextX = badgeX;
+                badgeTextY = y + 46*sc;
+                badgeRadius = 27*sc;
+                ctx.fillStyle = '#f5f5f7';
+                ctx.beginPath();
+                ctx.arc(badgeX, badgeY, badgeRadius, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.fillStyle = '#8e8e93';
+            }
             else if(currentTemplate === 5) {
                  ctx.fillStyle = '#a1887f'; ctx.fillRect(x + 30*sc, y + 20*sc, 50*sc, 50*sc);
                  ctx.fillStyle = '#ffffff';
             }
             else if(currentTemplate === 2) ctx.fillStyle = UNI.green; else ctx.fillStyle = '#2c6060';
-            if(currentTemplate !== 4 && currentTemplate !== 5) { ctx.beginPath(); ctx.arc(x + 50*sc, y + 50*sc, 25*sc, 0, 2 * Math.PI); ctx.fill(); ctx.fillStyle = '#fff'; }
-            ctx.font = `bold ${idxSize}px Cairo`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(idx, x + 55*sc, y + 45*sc);
+            if(currentTemplate !== 4 && currentTemplate !== 5) { ctx.beginPath(); ctx.arc(badgeX, badgeY, badgeRadius, 0, 2 * Math.PI); ctx.fill(); ctx.fillStyle = '#fff'; }
+            ctx.font = `bold ${idxSize}px Cairo`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(idx, badgeTextX, badgeTextY);
         }
 
         function getStats(a) { return { t: a.length, n: a.filter(x=>x.st==='جديدة').length, c: a.filter(x=>x.st==='مستمرة').length, i: a.filter(x=>x.st==='خارجية' || isExternalExecution(x.loc)).length }; }
