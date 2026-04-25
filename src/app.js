@@ -4,6 +4,8 @@
         let logoImage = null; 
         let lastBlob = null; 
         let lastZipBlob = null; 
+        let lastScreenSignature = null;
+        let lastReportSignature = null; 
 
         const FIXED_LOGO_URL = "./public/assets/logo-footer.png";
         const FALLBACK_LOGO_URL = "https://nauss.edu.sa/Style%20Library/ar-sa/Styles/images/home/logo-footer.png";
@@ -149,7 +151,7 @@
             img.src = FIXED_LOGO_URL;
         }
 
-        document.addEventListener('DOMContentLoaded', () => { addRow(); initWeekNumber(); loadDefaultLogo(); loadMemory(); loadIntroSettings(); checkShareSupport(); });
+        document.addEventListener('DOMContentLoaded', () => { addRow(); initWeekNumber(); loadDefaultLogo(); loadMemory(); loadIntroSettings(); bindStateInvalidationEvents(); checkShareSupport(); updateShareButtons(); });
 
         // --- 2. UI Logic ---
         function initWeekNumber() { updateWeekNumberFromRows(); }
@@ -186,6 +188,7 @@
             document.querySelectorAll('.template-thumb').forEach(el => el.classList.remove('selected'));
             const selected = document.getElementById('tpl-' + id);
             if (selected) selected.classList.add('selected');
+            invalidateGeneratedFiles();
         }
 
         function toggleLoader(show, text = "جاري المعالجة...") {
@@ -232,7 +235,10 @@
             if (!modeEl || !customEl) return;
             customEl.classList.toggle('hidden', modeEl.value !== 'custom');
             saveIntroSettings();
-            if (showMessage) showToast('تم تحديث إعداد النص التمهيدي', 'success');
+            if (showMessage) {
+                invalidateGeneratedFiles();
+                showToast('تم تحديث إعداد النص التمهيدي', 'success');
+            }
         }
 
         function getScreenIntroText() {
@@ -242,6 +248,85 @@
             if (mode === 'none') return '';
             if (mode === 'custom') return (customEl ? customEl.value.trim() : '');
             return DEFAULT_SCREEN_INTRO;
+        }
+
+        function getRowsSignaturePayload() {
+            return rows
+                .filter(x => String(x.n || '').trim() !== '')
+                .map(x => ({
+                    n: x.n || '',
+                    loc: x.loc || '',
+                    s: x.s || '',
+                    e: x.e || '',
+                    st: x.st || '',
+                    p: x.p || '',
+                    f: x.f || '',
+                    r: x.r || '',
+                    sp: x.sp || ''
+                }));
+        }
+
+        function getWeekValue() {
+            const weekEl = document.getElementById('w-id');
+            return weekEl ? String(weekEl.value || '').trim() : '';
+        }
+
+        function getScreenGenerationSignature() {
+            return JSON.stringify({
+                output: 'screen',
+                week: getWeekValue(),
+                owner: getSelectedOwner(),
+                template: currentTemplate,
+                intro: getScreenIntroText(),
+                rows: getRowsSignaturePayload()
+            });
+        }
+
+        function getAgentReportGenerationSignature() {
+            return JSON.stringify({
+                output: 'agent-report',
+                week: getWeekValue(),
+                owner: getSelectedOwner(),
+                rows: getRowsSignaturePayload()
+            });
+        }
+
+        function isScreenShareReady() {
+            return !!lastZipBlob && lastScreenSignature === getScreenGenerationSignature();
+        }
+
+        function isAgentReportShareReady() {
+            return !!lastBlob && lastReportSignature === getAgentReportGenerationSignature();
+        }
+
+        function updateShareButtonState(button, isReady, readyTitle) {
+            if (!button) return;
+            button.classList.remove('hidden');
+            button.title = isReady ? readyTitle : 'لا يمكن مشاركة الملف إلا بعد توليد الملف بشكله النهائي';
+            button.classList.toggle('opacity-50', !isReady);
+            button.classList.toggle('cursor-not-allowed', !isReady);
+        }
+
+        function updateShareButtons() {
+            updateShareButtonState(document.getElementById('btn-share-screen'), isScreenShareReady(), 'تنزيل مسودة بريد شاشة مدخل المبنى');
+            updateShareButtonState(document.getElementById('btn-share-report'), isAgentReportShareReady(), 'تنزيل مسودة بريد الوكيل');
+        }
+
+        function invalidateGeneratedFiles() {
+            lastZipBlob = null;
+            lastBlob = null;
+            lastScreenSignature = null;
+            lastReportSignature = null;
+            updateShareButtons();
+        }
+
+        function bindStateInvalidationEvents() {
+            const ownerEl = document.getElementById('owner-select');
+            const weekEl = document.getElementById('w-id');
+            const customIntroEl = document.getElementById('intro-custom');
+            if (ownerEl) ownerEl.addEventListener('change', invalidateGeneratedFiles);
+            if (weekEl) weekEl.addEventListener('input', invalidateGeneratedFiles);
+            if (customIntroEl) customIntroEl.addEventListener('input', invalidateGeneratedFiles);
         }
 
         // الشعار الرسمي ثابت ويحمّل تلقائيًا من public/assets/logo-footer.png
@@ -265,6 +350,7 @@
             const o = normalizeLegacyRow(d);
             if (!o.id) o.id = Date.now() + Math.random();
             rows.push(o); renderRow(o); 
+            invalidateGeneratedFiles();
         }
         
         function renderRow(o) {
@@ -303,8 +389,9 @@
                 if (k === 's') updateWeekNumberFromRows();
             }
             saveMemory(k, v);
+            invalidateGeneratedFiles();
         }
-        function delRow(id) { rows = rows.filter(x => x.id !== id); document.getElementById(`r-${id}`).remove(); updateIdx(); if (rows.length === 0) addRow(); }
+        function delRow(id) { rows = rows.filter(x => x.id !== id); document.getElementById(`r-${id}`).remove(); updateIdx(); if (rows.length === 0) addRow(); invalidateGeneratedFiles(); }
         function updateIdx() { document.querySelectorAll('.idx').forEach((n, i) => n.innerText = i+1); }
 
         function isExternalExecution(place = "") {
@@ -348,6 +435,7 @@
                     });
                     updateIdx();
                     updateWeekNumberFromRows();
+                    invalidateGeneratedFiles();
                     showToast(`تم استيراد ${rows.length} أنشطة تدريبية`, 'success');
                     e.target.value = '';
                 } catch(err) { showToast("خطأ في قراءة الملف: " + err.message, 'error'); }
@@ -357,7 +445,7 @@
 
         // --- 4. Archive ---
         function autoSave() { try { const week = document.getElementById('w-id').value; const owner = getSelectedOwner(); const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); archive[week] = { rows: rows, owner: owner }; localStorage.setItem(ARCH_KEY, JSON.stringify(archive)); } catch(e) {} }
-        function loadFromArchive(week) { const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); if(archive[week]) { const data = archive[week]; rows = []; document.getElementById('rows-box').innerHTML = ''; (data.rows || data).forEach(r => addRow(r)); document.getElementById('w-id').value = week; document.getElementById('owner-select').value = data.owner || ""; updateIdx(); showPage('generator'); showToast(`تم تحميل الأسبوع ${week}`, 'info'); } }
+        function loadFromArchive(week) { const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); if(archive[week]) { const data = archive[week]; rows = []; document.getElementById('rows-box').innerHTML = ''; (data.rows || data).forEach(r => addRow(r)); document.getElementById('w-id').value = week; document.getElementById('owner-select').value = data.owner || ""; updateIdx(); invalidateGeneratedFiles(); showPage('generator'); showToast(`تم تحميل الأسبوع ${week}`, 'info'); } }
         function deleteFromArchive(week) { if(confirm(`حذف أرشيف الأسبوع ${week}؟`)) { const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); delete archive[week]; localStorage.setItem(ARCH_KEY, JSON.stringify(archive)); refreshArchiveView(); initWeekNumber(); showToast("تم الحذف", 'info'); } }
         function refreshArchiveView() { const container = document.getElementById('archive-list'); const noData = document.getElementById('no-archive'); const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); const keys = Object.keys(archive); container.innerHTML = ''; if(keys.length === 0) { noData.classList.remove('hidden'); return; } noData.classList.add('hidden'); keys.sort((a,b) => b - a).forEach(key => { const entry = archive[key]; const owner = entry.owner || 'غير محدد'; const count = (entry.rows || entry).length; const div = document.createElement('div'); div.className = "bg-slate-50 p-4 rounded-lg border hover:shadow-md transition-shadow"; div.innerHTML = `<div class="flex justify-between items-center mb-2"><h4 class="font-bold text-[#2c6060] text-lg">الأسبوع ${key}</h4><span class="text-xs bg-slate-200 px-2 py-1 rounded">${count} دورات</span></div><div class="text-xs text-slate-500 mb-3">بواسطة: <span class="font-bold text-slate-700">${owner}</span></div><div class="flex gap-2 mt-4"><button onclick="loadFromArchive('${key}')" class="flex-1 btn-main text-xs">📝 تعديل</button><button onclick="deleteFromArchive('${key}')" class="btn-outline text-xs text-red-500 border-red-500 hover:bg-red-50">🗑️ حذف</button></div>`; container.appendChild(div); }); }
 
@@ -387,6 +475,8 @@
                 const week = document.getElementById('w-id').value;
                 const content = await generateScreenZipBlob(valid, week);
                 lastZipBlob = content;
+                lastScreenSignature = getScreenGenerationSignature();
+                updateShareButtons();
                 saveAs(content, 'NFDP_Week_' + week + '_Screens.zip'); showToast("تم الحفظ!", 'success');
             } catch (err) { console.error(err); showToast("خطأ: " + err.message, 'error'); } finally { toggleLoader(false); }
         }
@@ -412,6 +502,8 @@
                 const week = document.getElementById('w-id').value;
                 const blob = await generateAgentReportBlob(valid);
                 lastBlob = blob;
+                lastReportSignature = getAgentReportGenerationSignature();
+                updateShareButtons();
                 saveAs(blob, `NFDP_Week_${week}_Agent_Report.jpg`);
                 showToast("تم التوليد!", 'success');
             } catch (err) { console.error(err); showToast("خطأ: " + err.message, 'error'); } finally { toggleLoader(false); }
@@ -419,10 +511,7 @@
 
         // --- Share Logic ---
         function checkShareSupport() { 
-            const btnScreen = document.getElementById('btn-share-screen'); 
-            const btnReport = document.getElementById('btn-share-report');
-            btnScreen.classList.remove('hidden'); 
-            btnReport.classList.remove('hidden'); 
+            updateShareButtons();
         }
 
         function splitBase64Lines(base64) {
@@ -509,16 +598,14 @@
 
         async function shareScreenImages() {
             if (!validateOwnerSelection()) return;
-            const valid = rows.filter(x => x.n.trim() !== ""); if(valid.length === 0) { showToast("لا توجد بيانات!", 'error'); return; }
+            if (!isScreenShareReady()) {
+                showToast('لا يمكن مشاركة الملف إلا بعد توليد الملف بشكله النهائي', 'error');
+                return;
+            }
             toggleLoader(true, "جاري تجهيز مسودة البريد...");
             try {
-                if(document.fonts && document.fonts.ready) await document.fonts.ready;
-                updateWeekNumberFromRows();
-                autoSave();
                 const week = document.getElementById('w-id').value;
-                const zipBlob = await generateScreenZipBlob(valid, week);
-                lastZipBlob = zipBlob;
-                const emlBlob = await createScreenEml(zipBlob, week);
+                const emlBlob = await createScreenEml(lastZipBlob, week);
                 saveAs(emlBlob, 'Screen_Schedule_Week_' + week + '.eml');
                 showToast("تم تنزيل مسودة البريد", 'success');
             } catch (error) { console.error(error); showToast("خطأ في إنشاء مسودة البريد", 'error'); }
@@ -527,16 +614,14 @@
 
         async function shareAgentReport() {
             if (!validateOwnerSelection()) return;
-            const valid = rows.filter(x => x.n.trim() !== ""); if(valid.length === 0) { showToast("لا توجد بيانات!", 'error'); return; }
+            if (!isAgentReportShareReady()) {
+                showToast('لا يمكن مشاركة الملف إلا بعد توليد الملف بشكله النهائي', 'error');
+                return;
+            }
             toggleLoader(true, "جاري تجهيز مسودة بريد الوكيل...");
             try {
-                if(document.fonts && document.fonts.ready) await document.fonts.ready;
-                updateWeekNumberFromRows();
-                autoSave();
                 const week = document.getElementById('w-id').value;
-                const reportBlob = await generateAgentReportBlob(valid);
-                lastBlob = reportBlob;
-                const emlBlob = await createAgentReportEml(reportBlob, week);
+                const emlBlob = await createAgentReportEml(lastBlob, week);
                 saveAs(emlBlob, 'Agent_Report_Week_' + week + '.eml');
                 showToast("تم تنزيل مسودة بريد الوكيل", 'success');
             } catch (error) { console.error(error); showToast("خطأ في إنشاء مسودة بريد الوكيل", 'error'); }
