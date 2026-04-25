@@ -161,7 +161,7 @@
             img.src = DARK_LOGO_URL;
         }
 
-        document.addEventListener('DOMContentLoaded', () => { addRow(); initWeekNumber(); loadDefaultLogo(); loadDarkLogo(); loadMemory(); loadIntroSettings(); bindStateInvalidationEvents(); checkShareSupport(); updateShareButtons(); });
+        document.addEventListener('DOMContentLoaded', () => { addRow(); initWeekNumber(); loadDefaultLogo(); loadDarkLogo(); loadMemory(); loadIntroSettings(); setupSmartPasteUI(); bindStateInvalidationEvents(); checkShareSupport(); updateShareButtons(); });
 
         // --- 2. UI Logic ---
         function initWeekNumber() { updateWeekNumberFromRows(); }
@@ -409,6 +409,146 @@
             if (!value) return false;
             return !INTERNAL_EXECUTION_KEYWORDS.some(keyword => value.includes(keyword));
         }
+
+
+        // --- 2.1 Smart Paste from LMS ---
+        function setupSmartPasteUI() {
+            const uploadLabel = document.querySelector('label[for="x-f"]') || document.getElementById('x-f')?.closest('label');
+            if (!uploadLabel || document.getElementById('smart-paste-btn')) return;
+
+            const holder = uploadLabel.parentElement?.parentElement?.parentElement || uploadLabel.parentElement;
+            if (!holder) return;
+
+            const btnWrap = document.createElement('div');
+            btnWrap.className = 'mt-2';
+            btnWrap.innerHTML = `
+                <button id="smart-paste-btn" type="button" onclick="openSmartPasteModal()" class="form-input text-center text-xs hover:bg-slate-50">
+                    📋 لصق ذكي من LMS
+                </button>
+            `;
+            holder.appendChild(btnWrap);
+
+            const modal = document.createElement('div');
+            modal.id = 'smart-paste-modal';
+            modal.className = 'fixed inset-0 bg-slate-900/50 z-[120] hidden items-center justify-center p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl border overflow-hidden">
+                    <div class="flex items-center justify-between p-4 border-b">
+                        <h3 class="font-bold text-[#2c6060]">اللصق الذكي من LMS</h3>
+                        <button type="button" onclick="closeSmartPasteModal()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">×</button>
+                    </div>
+                    <div class="p-4 space-y-3">
+                        <p class="text-xs text-slate-500">
+                            الصق الصفوف المنسوخة من منصة LMS. سيقرأ النظام الأعمدة بالترتيب:
+                            اسم النشاط التدريبي | مكان التنفيذ | تاريخ البدء | تاريخ الانتهاء | الحالة | اسم منسق التدريب | القاعة | الطابق | الفترة
+                        </p>
+                        <textarea id="smart-paste-text" class="form-input min-h-[260px] font-mono text-sm leading-7" placeholder="الصق البيانات هنا..."></textarea>
+                        <div class="flex flex-wrap gap-2 justify-between items-center">
+                            <div class="text-xs text-slate-400" id="smart-paste-hint">يدعم النسخ من الجداول، Tab، والفواصل.</div>
+                            <div class="flex gap-2">
+                                <button type="button" onclick="clearSmartPasteText()" class="btn-outline text-xs">مسح</button>
+                                <button type="button" onclick="applySmartPaste('append')" class="btn-outline text-xs">إضافة للجدول الحالي</button>
+                                <button type="button" onclick="applySmartPaste('replace')" class="btn-main text-xs">استبدال الجدول الحالي</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function openSmartPasteModal() {
+            const modal = document.getElementById('smart-paste-modal');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => document.getElementById('smart-paste-text')?.focus(), 50);
+        }
+
+        function closeSmartPasteModal() {
+            const modal = document.getElementById('smart-paste-modal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function clearSmartPasteText() {
+            const txt = document.getElementById('smart-paste-text');
+            if (txt) txt.value = '';
+        }
+
+        function splitSmartPasteLine(line) {
+            if (line.includes('\t')) return line.split('\t');
+            if (line.includes('|')) return line.split('|');
+            if (line.includes(';')) return line.split(';');
+            if (line.includes(',')) return line.split(',');
+            return line.split(/\s{2,}/);
+        }
+
+        function isSmartPasteHeader(parts) {
+            const joined = normalizeArabicValue(parts.join(' '));
+            return joined.includes('اسم النشاط') || joined.includes('مكان التنفيذ') || joined.includes('تاريخ البدء') || joined.includes('اسم منسق');
+        }
+
+        function buildSmartPasteRow(parts) {
+            const clean = parts.map(v => String(v || '').trim()).filter((v, idx, arr) => v || arr.length >= 9);
+            if (clean.length < 2 || isSmartPasteHeader(clean)) return null;
+
+            const cells = [...clean];
+            while (cells.length < 9) cells.push('');
+
+            return {
+                n: cells[0] || '',
+                loc: normalizeExecutionPlace(cells[1]),
+                s: parseExcelDate(cells[2]) || cells[2] || '',
+                e: parseExcelDate(cells[3]) || cells[3] || '',
+                st: normalizeStatus(cells[4]),
+                sp: cells[5] || DDL.sup[0],
+                r: cells[6] || DDL.room[0],
+                f: normalizeFloor(cells[7] || DDL.floor[0]),
+                p: normalizePeriod(cells[8] || DDL.period[0])
+            };
+        }
+
+        function parseSmartPasteText(rawText) {
+            const raw = String(rawText || '').replace(/\r/g, '').trim();
+            if (!raw) return [];
+
+            const lines = raw.split('\n').map(line => line.trim()).filter(Boolean);
+            const parsed = [];
+
+            for (const line of lines) {
+                const parts = splitSmartPasteLine(line).map(x => x.trim());
+                const row = buildSmartPasteRow(parts);
+                if (row && row.n) parsed.push(row);
+            }
+
+            return parsed;
+        }
+
+        function applySmartPaste(mode = 'replace') {
+            const txt = document.getElementById('smart-paste-text');
+            const pastedRows = parseSmartPasteText(txt?.value || '');
+
+            if (!pastedRows.length) {
+                showToast('لم يتم العثور على بيانات قابلة للقراءة', 'error');
+                return;
+            }
+
+            if (mode === 'replace') {
+                rows = [];
+                const box = document.getElementById('rows-box');
+                if (box) box.innerHTML = '';
+            }
+
+            pastedRows.forEach(row => addRow(row));
+            updateIdx();
+            updateWeekNumberFromRows();
+            invalidateGeneratedFiles();
+            closeSmartPasteModal();
+            showToast(`تمت قراءة ${pastedRows.length} نشاط تدريبي`, 'success');
+        }
+
 
         // --- 3. Excel ---
         function dlTpl() {
