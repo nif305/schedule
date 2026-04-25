@@ -2,12 +2,14 @@
         let rows = [];
         let currentTemplate = 1;
         let logoImage = null; 
+        let darkLogoImage = null; 
         let lastBlob = null; 
         let lastZipBlob = null; 
         let lastScreenSignature = null;
         let lastReportSignature = null; 
 
         const FIXED_LOGO_URL = "./public/assets/logo-footer.png";
+        const FIXED_DARK_LOGO_URL = "./public/assets/logo-footer-dark.png";
         const FALLBACK_LOGO_URL = "https://nauss.edu.sa/Style%20Library/ar-sa/Styles/images/home/logo-footer.png";
         
         const UNI = {
@@ -834,9 +836,10 @@
             drawBackground(ctx, W, H);
 
             const headerPad = 60;
+            const outputLogo = (currentTemplate === 3 && darkLogoImage) ? darkLogoImage : logo;
             const logoTargetW = 1000; 
             let logoH = 0;
-            if (logo && logo.width > 0) { logoH = logoTargetW * (logo.height / logo.width); }
+            if (outputLogo && outputLogo.width > 0) { logoH = logoTargetW * (outputLogo.height / outputLogo.width); }
             const titleFontSize = 100;
             const titleH = titleFontSize + 20;
             const totalHeaderH = headerPad + logoH + (logoH > 0 ? 40 : 0) + titleH + headerPad;
@@ -852,7 +855,7 @@
             }
 
             let currentDrawY = headerPad;
-            if (logo && logo.width > 0) { const logoX = (W - logoTargetW) / 2; ctx.drawImage(logo, logoX, currentDrawY, logoTargetW, logoH); currentDrawY += logoH + 40; }
+            if (outputLogo && outputLogo.width > 0) { const logoX = (W - logoTargetW) / 2; ctx.drawImage(outputLogo, logoX, currentDrawY, logoTargetW, logoH); currentDrawY += logoH + 40; }
             
             if(currentTemplate === 6) ctx.fillStyle = '#ffffff';
             else if(currentTemplate === 2 || currentTemplate === 4) ctx.fillStyle = UNI.gold;
