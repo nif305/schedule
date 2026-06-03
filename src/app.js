@@ -470,7 +470,7 @@
         function renderRow(o) {
             const el = document.createElement('div');
             el.id = `r-${o.id}`;
-            el.className = "bg-white p-2 rounded-lg border hover:border-[#2c6060] transition-colors relative group";
+            el.className = "course-row p-3 relative group";
             const opts = (arr, sel) => arr.map(x => `<option value="${x}" ${x===sel?'selected':''}>${x}</option>`).join('');
             el.innerHTML = `
                 <div class="grid grid-cols-12 gap-2 items-center">
