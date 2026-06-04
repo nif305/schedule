@@ -2017,7 +2017,8 @@
         }
 
         function tCardH(startY, n, gap) {
-            return Math.max(900, Math.floor((T_H-startY-240-gap*(n-1))/n));
+            const natural = Math.floor((T_H-startY-240-gap*(n-1))/n);
+            return Math.max(900, Math.min(1650, natural));
         }
 
         // ==========================================================
@@ -2442,15 +2443,17 @@
             const dtY17 = y+hdrH+h*0.04;
             ctx.fillStyle = TC.sub; ctx.textAlign = 'center'; ctx.font = `normal ${dtFs17}px Cairo`;
             ctx.fillText(`${c.s||'—'}  ←  ${c.e||'—'}`, x+w/2, dtY17+dtFs17);
-            // Chips 3 + 2 rows (RTL order: الطابق right → مكان التنفيذ left)
-            const chipAreaH17 = h - hdrH - botH - h*0.04 - dtFs17*1.5 - 35;
-            const cH17 = Math.min(195, Math.floor(chipAreaH17/2) - chipGap);
-            const chipY1_17 = dtY17 + dtFs17*1.35 + h*0.02;
+            // Chips 3 + 2 rows — fill all space between date and coordinator
+            const chipTopAnchor = dtY17 + dtFs17*1.6 + h*0.018;
+            const chipBotAnchor = y + h - botH - h*0.012;
+            const chipTotalH = chipBotAnchor - chipTopAnchor;
+            const cH17 = Math.max(60, Math.floor((chipTotalH - chipGap) / 2));
+            const chipY1_17 = chipTopAnchor;
             const chipY2_17 = chipY1_17 + cH17 + chipGap;
             const r1_17 = [['الطابق',shouldHideFloorValue(c.f)?'—':c.f,4],['القاعة',c.r,3],['الحالة',c.st,2]];
             const r2_17 = [['الفترة',c.p,1],['مكان التنفيذ',c.loc,0]];
             const bW1_17 = (w-80-chipGap*2)/3, bW2_17 = (w-80-chipGap)/2;
-            const vFs17 = Math.min(105, cH17*0.36), lFs17 = Math.min(48, cH17*0.18);
+            const vFs17 = Math.min(h*0.11, cH17*0.40), lFs17 = Math.min(h*0.048, cH17*0.19);
             const dRow17 = (arr, bWW, ry) => arr.forEach((it,i) => {
                 const bx = x+40+i*(bWW+chipGap);
                 ctx.fillStyle = TC.soft; drawRoundedRect(ctx,bx,ry,bWW,cH17,20);
@@ -2528,7 +2531,7 @@
             ctx.fillStyle=TC.gold; ctx.save(); ctx.translate(pCX18,y+h*0.92); ctx.rotate(Math.PI/4); ctx.fillRect(-13,-13,26,26); ctx.restore();
             // Body: chips + title + date
             const bW18=w-panelW-60, midX18=x+bW18/2;
-            const chipH18=Math.min(475,h*0.335);
+            const chipH18=Math.min(h*0.38, Math.max(300, h*0.335));
             const chipY18=y+h-chipH18-44;
             tChip(ctx,c,x+44,chipY18,bW18-44,chipH18);
             const avH18=chipY18-y;
@@ -2596,7 +2599,7 @@
             ctx.fillStyle='#FFFFFF'; ctx.textAlign='center'; ctx.font=`bold ${coFs19}px Cairo`;
             ctx.fillText(`منسق التدريب:  ${c.sp||'—'}`,x+w/2,y+h-coSH19*0.35);
             // Chips
-            const chipH19=Math.min(455,h*0.325);
+            const chipH19=Math.min(h*0.37, Math.max(300, h*0.325));
             const chipY19=y+h-coSH19-chipH19-24;
             tChip(ctx,c,x+38,chipY19,w-76,chipH19);
             // Title centered in remaining space
@@ -2663,7 +2666,7 @@
             wrapTextSimple(ctx,c.sp||'—',coW20-52).slice(0,2).forEach((l,li)=>ctx.fillText(l,pCX20,y+h*0.77+li*coNameFs20*1.36));
             // Body area
             const bW20=w-coW20-48, midX20=x+bW20/2;
-            const chipH20=Math.min(485,h*0.342);
+            const chipH20=Math.min(h*0.38, Math.max(300, h*0.342));
             const chipY20=y+h-chipH20-42;
             tChip(ctx,c,x+42,chipY20,bW20-86,chipH20);
             const avH20=chipY20-y;
@@ -2724,7 +2727,7 @@
             const cntX21=coX21+coW21+pad21;
             const cntW21=w-coW21-pad21*3-20;
             const midX21=cntX21+cntW21/2;
-            const chipH21=Math.min(470,h*0.335);
+            const chipH21=Math.min(h*0.38, Math.max(300, h*0.335));
             const chipY21=y+h-chipH21-38;
             tChip(ctx,c,cntX21,chipY21,cntW21,chipH21);
             const avH21=chipY21-y;
