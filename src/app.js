@@ -835,9 +835,10 @@
             const chunksS = chunk(valid, 4);
             for(let i=0; i<chunksS.length; i++) {
                 const isRefTemplate = [12, 13, 14, 15, 16].includes(currentTemplate);
+                const isIosHD = currentTemplate === 4;
                 const canvas = document.createElement('canvas');
-                canvas.width  = isRefTemplate ? 4320 : 2160;
-                canvas.height = isRefTemplate ? 7680 : 3840;
+                canvas.width  = isRefTemplate ? 4320 : isIosHD ? 6480 : 2160;
+                canvas.height = isRefTemplate ? 7680 : isIosHD ? 11520 : 3840;
                 const ctx = canvas.getContext('2d'); drawScreenCard(ctx, chunksS[i], stats, i+1, chunksS.length, i*4, logoImage);
                 const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
                 zip.file('Week-' + week + '-Screen-' + (i+1) + '.jpg', blob);
@@ -1212,6 +1213,7 @@
         // Screen Card Drawing (Templates)
         // ---------------------------------------------------------
         function drawScreenCard(ctx, list, stats, pn, tp, si, logo) {
+            if (currentTemplate === 4)  { drawIosHDScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
             if (currentTemplate === 12) { drawReferenceOneScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
             if (currentTemplate === 13) { drawReferenceTwoScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
             if (currentTemplate === 14) { drawReferenceThreeScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
@@ -2377,6 +2379,184 @@
             tRes16.lines.forEach(l=>{ctx.fillText(l,midX,ty16);ty16+=lh16;});
             ty16+=30;
             tDate(ctx,c,midX,ty16,cntW-60,dateFs16);
+        }
+
+        // ==========================================================
+        // iOS HD — قالب iOS بجودة فائقة (6480 × 11520)
+        // نفس تناسب iOS الأصلي × 3 مع إيقونات خطية ذهبية
+        // ==========================================================
+        function drawIosHDScreenCard(ctx, list, stats, pn, tp, si, logo) {
+            const S = 3;
+            const W = 2160*S, H = 3840*S; // 6480 × 11520
+
+            // ── Background ─────────────────────────────────────────
+            ctx.fillStyle = '#f5f5f7'; ctx.fillRect(0,0,W,H);
+
+            // ── Header ─────────────────────────────────────────────
+            const hPad = 60*S;
+            const lTW = 1000*S;
+            let lH = 0;
+            if(logo&&logo.width>0) lH = lTW*(logo.height/logo.width);
+            const tFS = 100*S;
+            const hH = hPad + (lH>0?lH+40*S:0) + tFS + hPad;
+            ctx.fillStyle = UNI.green; ctx.fillRect(0,0,W,hH);
+            ctx.fillStyle = UNI.gold;  ctx.fillRect(0,hH-15*S,W,15*S);
+            let hy = hPad;
+            if(logo&&logo.width>0){ctx.drawImage(logo,(W-lTW)/2,hy,lTW,lH);hy+=lH+40*S;}
+            ctx.fillStyle=UNI.gold; ctx.textAlign='center'; ctx.font=`bold ${tFS}px Cairo`;
+            ctx.fillText('جدول الدورات التدريبية',W/2,hy+tFS);
+            ctx.fillStyle='rgba(255,255,255,0.55)'; ctx.font=`normal ${36*S}px Cairo`;
+            ctx.fillText(`صفحة ${pn} من ${tp}`,W/2,hy+tFS+52*S);
+
+            // ── Stats ───────────────────────────────────────────────
+            const sY=hH+48*S, sBH=200*S, sG=34*S, sMX=78*S;
+            const sBW=(W-sMX*2-sG*3)/4;
+            const sIt=[['إجمالي',stats.t],['جديدة',stats.n],['مستمرة',stats.c],['خارجية',stats.i]];
+            sIt.forEach((it,i)=>{
+                const bx=sMX+i*(sBW+sG);
+                ctx.shadowColor='rgba(0,0,0,0.10)'; ctx.shadowBlur=20*S; ctx.shadowOffsetY=5*S;
+                ctx.fillStyle='#ffffff'; drawRoundedRect(ctx,bx,sY,sBW,sBH,20*S);
+                ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetY=0;
+                ctx.strokeStyle=i===0?UNI.gold:'#e5e5ea'; ctx.lineWidth=(i===0?4:2)*S;
+                ctx.strokeRect(bx,sY,sBW,sBH);
+                ctx.fillStyle=i===0?UNI.green:'#1d1d1f'; ctx.textAlign='center'; ctx.textBaseline='middle';
+                ctx.font=`bold ${90*S}px Cairo`; ctx.fillText(String(it[1]),bx+sBW/2,sY+sBH*0.47);
+                ctx.fillStyle='#8e8e93'; ctx.font=`normal ${40*S}px Cairo`; ctx.fillText(it[0],bx+sBW/2,sY+sBH*0.78);
+                ctx.textBaseline='alphabetic';
+            });
+
+            // ── Intro ───────────────────────────────────────────────
+            const iY=sY+sBH+38*S;
+            let nY=iY;
+            const iText=getScreenIntroText();
+            if(iText){
+                ctx.fillStyle='#475569'; ctx.textAlign='center'; ctx.font=`normal ${44*S}px Cairo`;
+                wrapTextSimple(ctx,iText,W-200*S).slice(0,2).forEach(l=>{ctx.fillText(l,W/2,nY);nY+=58*S;});
+            }
+            nY+=28*S;
+
+            // ── Cards ───────────────────────────────────────────────
+            const cGap=28*S, fH=128*S;
+            const cH=Math.floor((H-nY-fH-cGap*(list.length-1))/list.length);
+            for(let i=0;i<list.length;i++){
+                if(list[i]) iosHDCard(ctx,list[i],78*S,nY,W-156*S,cH,si+i+1,S);
+                nY+=cH+cGap;
+            }
+
+            // ── Footer ──────────────────────────────────────────────
+            ctx.fillStyle='#f5f5f7'; ctx.fillRect(0,H-fH,W,fH);
+            ctx.strokeStyle='#e0e0e0'; ctx.lineWidth=2*S;
+            ctx.beginPath(); ctx.moveTo(0,H-fH); ctx.lineTo(W,H-fH); ctx.stroke();
+            ctx.fillStyle='#8e8e93'; ctx.textAlign='center';
+            ctx.font=`normal ${34*S}px Cairo`;
+            ctx.fillText('وكالة التدريب بجامعة نايف العربية للعلوم الأمنية',W/2,H-fH/2+14*S);
+        }
+
+        function iosHDCard(ctx, c, x, y, w, h, idx, S) {
+            const pad = 50*S, rad = 40*S;
+            // shadow + card
+            ctx.shadowColor='rgba(0,0,0,0.13)'; ctx.shadowBlur=38*S; ctx.shadowOffsetY=10*S;
+            ctx.fillStyle='#ffffff'; drawRoundedRect(ctx,x,y,w,h,rad);
+            ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetY=0;
+            const cTxt='#1d1d1f', cX=x+w/2;
+
+            // sizes (all relative to S)
+            const ttlFS=70*S, dtFS=40*S, rBH=96*S, rGp=24*S;
+            const spFS=42*S, ttlDG=34*S, dtIG=32*S, iGsS=30*S;
+
+            const res=wrapTextSmart(ctx,c.n,w-pad*2,2,ttlFS);
+            const ttlH=res.lines.length*res.lineHeight;
+            const spPH=spFS+34*S;
+            const total=ttlH+ttlDG+dtFS+dtIG+(rBH*2+rGp)+iGsS+spPH;
+            let cY=y+(h-total)/2;
+
+            // title
+            ctx.fillStyle=cTxt; ctx.textAlign='center'; ctx.font=`bold ${res.fontSize}px Cairo`;
+            res.lines.forEach((l,i)=>ctx.fillText(l,cX,cY+res.fontSize+i*res.lineHeight));
+            cY+=ttlH+ttlDG;
+
+            // date
+            ctx.fillStyle='#64748b'; ctx.font=`normal ${dtFS}px Cairo`;
+            ctx.fillText(`${c.s||'—'} - ${c.e||'—'}`,cX,cY+dtFS);
+            cY+=dtFS+dtIG;
+
+            // info boxes (2 rows: 3+2, RTL order)
+            const cW=w-pad*2;
+            const tBG=22*S, bBG=22*S;
+            const tBW=(cW-tBG*2)/3, bBW=(cW-bBG)/2;
+            const lFS=22*S, vFS=32*S, icS=36*S, icG=12*S;
+            const icCol='#C7B08C', lbCol='#8e8e93';
+
+            const ioBox=(bx,by,bw,bh,ic,lbl,val)=>{
+                ctx.fillStyle='#f5f5f7'; drawRoundedRect(ctx,bx,by,bw,bh,18*S);
+                const hY=by+bh*0.32;
+                ctx.textBaseline='middle'; ctx.font=`normal ${lFS}px Cairo`;
+                const lbW=ctx.measureText(lbl).width;
+                const gW=lbW+icG+icS;
+                const gRX=bx+(bw+gW)/2;
+                const icCX=gRX-icS/2, lbCX=gRX-icS-icG-lbW/2;
+                iosDrawIcon(ctx,ic,icCX,hY,icS,icCol);
+                ctx.fillStyle=lbCol; ctx.textAlign='center'; ctx.fillText(lbl,lbCX,hY);
+                ctx.fillStyle=cTxt; ctx.font=`bold ${vFS}px Cairo`;
+                let sv=String(val||'—'); while(ctx.measureText(sv).width>bw-36*S&&sv.length>0)sv=sv.slice(0,-1);
+                if(sv!==String(val||'—'))sv+='…';
+                ctx.fillText(sv,bx+bw/2,by+bh*0.74);
+                ctx.textBaseline='alphabetic';
+            };
+
+            const r1=[{ic:'location',lb:'مكان التنفيذ',v:c.loc},{ic:'status',lb:'الحالة',v:c.st},{ic:'period',lb:'الفترة',v:c.p}];
+            const r2=[{ic:'room',lb:'القاعة',v:c.r},{ic:'floor',lb:'الدور',v:shouldHideFloorValue(c.f)?'—':c.f}];
+            r1.forEach((it,i)=>{const bx=x+pad+cW-tBW-i*(tBW+tBG);ioBox(bx,cY,tBW,rBH,it.ic,it.lb,it.v);});
+            cY+=rBH+rGp;
+            r2.forEach((it,i)=>{const bx=x+pad+cW-bBW-i*(bBW+bBG);ioBox(bx,cY,bBW,rBH,it.ic,it.lb,it.v);});
+            cY+=rBH+iGsS;
+
+            // coordinator
+            const spTxt=`اسم منسق التدريب: ${c.sp||'—'}`;
+            ctx.font=`bold ${spFS}px Cairo`;
+            const spW=Math.min(w-pad*2,ctx.measureText(spTxt).width+90*S);
+            ctx.fillStyle='rgba(128,47,45,0.07)';
+            drawRoundedRect(ctx,cX-spW/2,cY+6*S,spW,spFS+34*S,18*S);
+            ctx.fillStyle=UNI.supRed; ctx.textAlign='center'; ctx.fillText(spTxt,cX,cY+spFS);
+
+            // index badge (top-left of card in canvas = leading in RTL)
+            const bdR=28*S, bdX=x+pad*0.7, bdY=y+pad*0.7;
+            ctx.strokeStyle=UNI.green; ctx.lineWidth=4*S;
+            ctx.beginPath(); ctx.arc(bdX,bdY,bdR,0,Math.PI*2); ctx.stroke();
+            ctx.fillStyle=UNI.green; ctx.textAlign='center'; ctx.font=`bold ${22*S}px Cairo`;
+            ctx.fillText(String(idx).padStart(2,'0'),bdX,bdY+9*S);
+        }
+
+        function iosDrawIcon(ctx, type, cx, cy, s, col) {
+            ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=Math.max(3,s*0.12);
+            ctx.lineCap='round'; ctx.lineJoin='round';
+            if(type==='location'){
+                ctx.beginPath(); ctx.arc(cx,cy-s*0.12,s*0.18,0,Math.PI*2); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(cx,cy+s*0.42);
+                ctx.lineTo(cx-s*0.18,cy+s*0.08);
+                ctx.quadraticCurveTo(cx-s*0.28,cy-s*0.1,cx,cy-s*0.3);
+                ctx.quadraticCurveTo(cx+s*0.28,cy-s*0.1,cx+s*0.18,cy+s*0.08);
+                ctx.closePath(); ctx.stroke();
+            } else if(type==='status'){
+                ctx.beginPath(); ctx.arc(cx,cy,s*0.3,0,Math.PI*2); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(cx-s*0.12,cy+s*0.02);
+                ctx.lineTo(cx-s*0.02,cy+s*0.14); ctx.lineTo(cx+s*0.16,cy-s*0.10); ctx.stroke();
+            } else if(type==='period'){
+                ctx.beginPath(); ctx.arc(cx,cy,s*0.3,0,Math.PI*2); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx,cy-s*0.14);
+                ctx.moveTo(cx,cy); ctx.lineTo(cx+s*0.12,cy+s*0.08); ctx.stroke();
+            } else if(type==='room'){
+                ctx.strokeRect(cx-s*0.28,cy-s*0.22,s*0.56,s*0.44);
+                ctx.beginPath(); ctx.moveTo(cx-s*0.34,cy-s*0.22);
+                ctx.lineTo(cx,cy-s*0.42); ctx.lineTo(cx+s*0.34,cy-s*0.22); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(cx,cy+s*0.22); ctx.lineTo(cx,cy-s*0.02); ctx.stroke();
+            } else {
+                ctx.beginPath();
+                ctx.moveTo(cx-s*0.28,cy+s*0.18); ctx.lineTo(cx-s*0.08,cy+s*0.18);
+                ctx.lineTo(cx-s*0.08,cy); ctx.lineTo(cx+s*0.12,cy);
+                ctx.lineTo(cx+s*0.12,cy-s*0.18); ctx.lineTo(cx+s*0.3,cy-s*0.18); ctx.stroke();
+            }
+            ctx.restore();
         }
 
         function wrapTextSimple(ctx, text, maxWidth) {
