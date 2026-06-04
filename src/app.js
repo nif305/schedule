@@ -1147,6 +1147,9 @@
             if (currentTemplate === 9) { drawN9NScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
             if (currentTemplate === 10) { drawOpsScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
             if (currentTemplate === 11) { drawTimelineScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
+            if (currentTemplate === 12) { drawReferenceOneScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
+            if (currentTemplate === 13) { drawReferenceTwoScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
+            if (currentTemplate === 14) { drawReferenceThreeScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
             const W = 2160, H = 3840;
             drawBackground(ctx, W, H);
 
@@ -1765,6 +1768,316 @@
             while (ctx.measureText(safe).width > w - 26 && safe.length > 0) safe = safe.slice(0, -1);
             if (safe !== value) safe += '...';
             ctx.fillText(safe, x + w / 2, y + 37);
+        }
+
+        function drawReferenceHeader(ctx, W, logo, pageNo, align = 'center') {
+            const headerH = 570;
+            const grd = ctx.createLinearGradient(0, 0, W, headerH);
+            grd.addColorStop(0, '#092f30');
+            grd.addColorStop(1, '#123f3d');
+            ctx.fillStyle = grd;
+            ctx.fillRect(0, 0, W, headerH);
+            ctx.fillStyle = 'rgba(208,178,132,0.16)';
+            ctx.fillRect(0, headerH - 22, W, 22);
+
+            if (logo && logo.width > 0) {
+                const logoW = 780;
+                const logoH = logoW * (logo.height / logo.width);
+                const logoX = align === 'right' ? W - logoW - 130 : (W - logoW) / 2;
+                ctx.drawImage(logo, logoX, 82, logoW, logoH);
+            }
+
+            ctx.fillStyle = UNI.gold;
+            ctx.textAlign = align === 'right' ? 'right' : 'center';
+            ctx.font = 'normal 82px Cairo';
+            ctx.fillText('جدول الدورات التدريبية', align === 'right' ? W - 130 : W / 2, 410);
+
+            ctx.strokeStyle = UNI.gold;
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.arc(W - 120, 120, 62, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.fillStyle = UNI.gold;
+            ctx.textAlign = 'center';
+            ctx.font = 'normal 56px Cairo';
+            ctx.fillText(String(pageNo), W - 120, 139);
+            return headerH;
+        }
+
+        function drawReferenceStats(ctx, stats, x, y, w, compact = false) {
+            const items = [['إجمالي', stats.t], ['جديدة', stats.n], ['مستمرة', stats.c], ['خارجية', stats.i]];
+            const gap = compact ? 24 : 34;
+            const h = compact ? 150 : 185;
+            const boxW = (w - gap * 3) / 4;
+            items.forEach((item, index) => {
+                const bx = x + index * (boxW + gap);
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = 'rgba(18,63,61,0.13)';
+                ctx.shadowBlur = 22;
+                ctx.shadowOffsetY = 8;
+                drawRoundedRect(ctx, bx, y, boxW, h, 18);
+                ctx.shadowColor = 'transparent';
+                ctx.strokeStyle = index === 3 ? 'rgba(208,178,132,0.82)' : '#e5e0d5';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(bx, y, boxW, h);
+                ctx.fillStyle = '#1a3f41';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.font = `normal ${compact ? 58 : 72}px Cairo`;
+                ctx.fillText(item[1], bx + boxW / 2, y + h * 0.40);
+                ctx.font = `normal ${compact ? 26 : 30}px Cairo`;
+                ctx.fillText(item[0], bx + boxW / 2, y + h * 0.70);
+            });
+            ctx.textBaseline = 'alphabetic';
+        }
+
+        function drawReferenceIntro(ctx, W, y, color = '#4a5f5c') {
+            const introText = getScreenIntroText();
+            if (!introText) return y;
+            ctx.fillStyle = color;
+            ctx.textAlign = 'center';
+            ctx.font = 'normal 36px Cairo';
+            wrapTextSimple(ctx, introText, W - 320).slice(0, 2).forEach(line => {
+                ctx.fillText(line, W / 2, y);
+                y += 50;
+            });
+            return y + 42;
+        }
+
+        function drawReferenceFooter(ctx, W, H, dark = true) {
+            ctx.fillStyle = dark ? '#123f3d' : '#f0e7d6';
+            drawRoundedRect(ctx, 85, H - 150, W - 170, 108, 22);
+            ctx.fillStyle = dark ? '#f8f2e6' : '#123f3d';
+            ctx.textAlign = 'center';
+            ctx.font = 'normal 34px Cairo';
+            ctx.fillText('وكالة التدريب بجامعة نايف العربية للعلوم الأمنية', W / 2, H - 82);
+            ctx.fillStyle = UNI.gold;
+            ctx.font = 'normal 38px Cairo';
+            ctx.fillText('▥', W / 2 - 420, H - 82);
+        }
+
+        function drawReferenceChips(ctx, c, x, y, w, h, tint = '#f4f1ea') {
+            const items = [
+                ['النطاق', c.p],
+                ['القاعة', c.r],
+                ['الحالة', c.st],
+                ['الفترة', c.p],
+                ['مقر التنفيذ', c.loc]
+            ];
+            const gap = 12;
+            const boxW = (w - gap * 4) / 5;
+            items.forEach((item, index) => {
+                const bx = x + index * (boxW + gap);
+                ctx.fillStyle = tint;
+                drawRoundedRect(ctx, bx, y, boxW, h, 12);
+                ctx.fillStyle = '#697371';
+                ctx.textAlign = 'center';
+                ctx.font = 'normal 21px Cairo';
+                ctx.fillText(item[0], bx + boxW / 2, y + h * 0.35);
+                ctx.fillStyle = '#123f3d';
+                ctx.font = 'normal 27px Cairo';
+                let value = String(item[1] || '-');
+                while (ctx.measureText(value).width > boxW - 20 && value.length > 0) value = value.slice(0, -1);
+                if (value !== String(item[1] || '-')) value += '...';
+                ctx.fillText(value, bx + boxW / 2, y + h * 0.73);
+            });
+        }
+
+        function drawReferenceOneScreenCard(ctx, list, stats, pn, tp, si, logo) {
+            const W = 2160, H = 3840;
+            ctx.fillStyle = '#f8f4ea';
+            ctx.fillRect(0, 0, W, H);
+            drawReferenceHeader(ctx, W, logo, pn, 'center');
+            drawReferenceStats(ctx, stats, 120, 680, W - 240);
+            let y = drawReferenceIntro(ctx, W, 1035);
+            const cardGap = 36;
+            const cardH = (H - y - 245 - cardGap * 3) / 4;
+            for (let i = 0; i < list.length; i++) {
+                if (list[i]) drawReferenceOneCourse(ctx, list[i], 95, y, W - 190, cardH, si + i + 1);
+                y += cardH + cardGap;
+            }
+            drawReferenceFooter(ctx, W, H, true);
+        }
+
+        function drawReferenceOneCourse(ctx, c, x, y, w, h, idx) {
+            const sideW = 360;
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = 'rgba(18,63,61,0.14)';
+            ctx.shadowBlur = 24;
+            ctx.shadowOffsetY = 10;
+            drawRoundedRect(ctx, x, y, w, h, 18);
+            ctx.shadowColor = 'transparent';
+            ctx.fillStyle = '#123f3d';
+            drawRoundedRect(ctx, x + w - sideW, y, sideW, h, 18);
+            ctx.fillStyle = 'rgba(208,178,132,0.12)';
+            ctx.fillRect(x + w - sideW, y, 8, h);
+
+            ctx.fillStyle = UNI.gold;
+            ctx.textAlign = 'center';
+            ctx.font = 'normal 88px Cairo';
+            ctx.fillText(String(idx), x + w - sideW / 2, y + 122);
+            ctx.fillStyle = '#f7efe2';
+            ctx.font = 'normal 27px Cairo';
+            ctx.fillText('منسق التدريب', x + w - sideW / 2, y + h - 145);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'normal 30px Cairo';
+            wrapTextSimple(ctx, c.sp || '-', sideW - 70).slice(0, 2).forEach((line, lineIndex) => {
+                ctx.fillText(line, x + w - sideW / 2, y + h - 100 + lineIndex * 38);
+            });
+
+            const bodyW = w - sideW - 44;
+            ctx.fillStyle = '#1f3838';
+            ctx.textAlign = 'center';
+            const title = wrapTextSmart(ctx, c.n + (isExternalExecution(c.loc) ? '  🌐' : ''), bodyW - 130, 2, 52);
+            ctx.font = `normal ${title.fontSize}px Cairo`;
+            let titleY = y + 92;
+            title.lines.forEach(line => { ctx.fillText(line, x + bodyW / 2, titleY); titleY += title.lineHeight; });
+            ctx.fillStyle = '#52615f';
+            ctx.font = 'normal 30px Cairo';
+            ctx.fillText(`${c.s}  -  ${c.e}`, x + bodyW / 2, y + 170);
+            drawReferenceChips(ctx, c, x + 40, y + h - 145, bodyW - 80, 94, '#f6f1e8');
+        }
+
+        function drawReferenceTwoScreenCard(ctx, list, stats, pn, tp, si, logo) {
+            const W = 2160, H = 3840;
+            ctx.fillStyle = '#fbfaf6';
+            ctx.fillRect(0, 0, W, H);
+            drawReferenceHeader(ctx, W, logo, pn, 'center');
+            drawReferenceStats(ctx, stats, 160, 700, W - 320, true);
+            let y = drawReferenceIntro(ctx, W, 995);
+            const cardGap = 42;
+            const cardH = (H - y - 245 - cardGap * 3) / 4;
+            for (let i = 0; i < list.length; i++) {
+                if (list[i]) drawReferenceTwoCourse(ctx, list[i], 150, y, W - 300, cardH, si + i + 1);
+                y += cardH + cardGap;
+            }
+            drawReferenceFooter(ctx, W, H, true);
+        }
+
+        function drawReferenceTwoCourse(ctx, c, x, y, w, h, idx) {
+            const dateW = 235;
+            const supW = 245;
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = 'rgba(18,63,61,0.13)';
+            ctx.shadowBlur = 22;
+            ctx.shadowOffsetY = 9;
+            drawRoundedRect(ctx, x, y, w, h, 16);
+            ctx.shadowColor = 'transparent';
+
+            ctx.fillStyle = '#123f3d';
+            drawRoundedRect(ctx, x, y, dateW, h, 16);
+            ctx.fillStyle = UNI.gold;
+            ctx.textAlign = 'center';
+            ctx.font = 'normal 58px Cairo';
+            ctx.fillText(String(idx), x + 52, y + 76);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'normal 27px Cairo';
+            ctx.fillText(c.s || '-', x + dateW / 2, y + h / 2 - 12);
+            ctx.fillText(c.e || '-', x + dateW / 2, y + h / 2 + 34);
+
+            ctx.fillStyle = '#123f3d';
+            ctx.beginPath();
+            ctx.arc(x + w - 88, y + 74, 46, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = UNI.gold;
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            ctx.fillStyle = UNI.gold;
+            ctx.font = 'normal 43px Cairo';
+            ctx.fillText('♙', x + w - 88, y + 88);
+            ctx.fillStyle = '#9a7540';
+            ctx.font = 'normal 24px Cairo';
+            ctx.fillText('منسق التدريب', x + w - supW / 2, y + h - 88);
+            ctx.fillStyle = '#123f3d';
+            ctx.font = 'normal 28px Cairo';
+            let sup = String(c.sp || '-');
+            while (ctx.measureText(sup).width > supW - 22 && sup.length > 0) sup = sup.slice(0, -1);
+            if (sup !== String(c.sp || '-')) sup += '...';
+            ctx.fillText(sup, x + w - supW / 2, y + h - 48);
+
+            const contentX = x + dateW + 34;
+            const contentW = w - dateW - supW - 62;
+            ctx.fillStyle = '#1f3838';
+            ctx.textAlign = 'center';
+            const title = wrapTextSmart(ctx, c.n + (isExternalExecution(c.loc) ? '  🌐' : ''), contentW - 90, 2, 48);
+            ctx.font = `normal ${title.fontSize}px Cairo`;
+            let titleY = y + 90;
+            title.lines.forEach(line => { ctx.fillText(line, contentX + contentW / 2, titleY); titleY += title.lineHeight; });
+            drawReferenceChips(ctx, c, contentX + 20, y + h - 128, contentW - 40, 86, '#faf7ef');
+        }
+
+        function drawReferenceThreeScreenCard(ctx, list, stats, pn, tp, si, logo) {
+            const W = 2160, H = 3840;
+            ctx.fillStyle = '#f7f3e9';
+            ctx.fillRect(0, 0, W, H);
+            drawReferenceHeader(ctx, W, logo, pn, 'center');
+            drawReferenceStats(ctx, stats, 120, 695, W - 240, true);
+            let y = drawReferenceIntro(ctx, W, 990);
+            const lineX = 210;
+            const cardGap = 40;
+            const cardH = (H - y - 250 - cardGap * 3) / 4;
+            ctx.strokeStyle = 'rgba(208,178,132,0.75)';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(lineX, y - 35);
+            ctx.lineTo(lineX, H - 235);
+            ctx.stroke();
+            for (let i = 0; i < list.length; i++) {
+                if (list[i]) drawReferenceThreeCourse(ctx, list[i], 305, y, W - 420, cardH, si + i + 1, lineX);
+                y += cardH + cardGap;
+            }
+            drawReferenceFooter(ctx, W, H, true);
+        }
+
+        function drawReferenceThreeCourse(ctx, c, x, y, w, h, idx, lineX) {
+            ctx.fillStyle = '#123f3d';
+            ctx.beginPath();
+            ctx.arc(lineX, y + h / 2, 52, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = UNI.gold;
+            ctx.lineWidth = 5;
+            ctx.stroke();
+            ctx.fillStyle = UNI.gold;
+            ctx.textAlign = 'center';
+            ctx.font = 'normal 52px Cairo';
+            ctx.fillText(String(idx), lineX, y + h / 2 + 18);
+            ctx.beginPath();
+            ctx.moveTo(lineX + 56, y + h / 2);
+            ctx.lineTo(x, y + h / 2);
+            ctx.stroke();
+
+            const supW = 285;
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = 'rgba(18,63,61,0.14)';
+            ctx.shadowBlur = 22;
+            ctx.shadowOffsetY = 8;
+            drawRoundedRect(ctx, x, y, w, h, 18);
+            ctx.shadowColor = 'transparent';
+            ctx.fillStyle = '#123f3d';
+            drawRoundedRect(ctx, x + w - supW, y, supW, h, 18);
+
+            ctx.fillStyle = UNI.gold;
+            ctx.font = 'normal 44px Cairo';
+            ctx.fillText('♙', x + w - supW / 2, y + 75);
+            ctx.fillStyle = '#f7efe2';
+            ctx.font = 'normal 24px Cairo';
+            ctx.fillText('منسق التدريب', x + w - supW / 2, y + h / 2 - 5);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'normal 28px Cairo';
+            wrapTextSimple(ctx, c.sp || '-', supW - 45).slice(0, 2).forEach((line, i) => {
+                ctx.fillText(line, x + w - supW / 2, y + h / 2 + 38 + i * 34);
+            });
+
+            const contentW = w - supW - 36;
+            ctx.fillStyle = '#173b3b';
+            const title = wrapTextSmart(ctx, c.n + (isExternalExecution(c.loc) ? '  🌐' : ''), contentW - 100, 2, 48);
+            ctx.font = `normal ${title.fontSize}px Cairo`;
+            let ty = y + 86;
+            title.lines.forEach(line => { ctx.fillText(line, x + contentW / 2, ty); ty += title.lineHeight; });
+            ctx.fillStyle = '#365351';
+            ctx.font = 'normal 28px Cairo';
+            ctx.fillText(`${c.s || '-'}  -  ${c.e || '-'}`, x + contentW / 2, y + 168);
+            drawReferenceChips(ctx, c, x + 34, y + h - 126, contentW - 70, 86, '#f6f1e8');
         }
 
         function wrapTextSimple(ctx, text, maxWidth) {
