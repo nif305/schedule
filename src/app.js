@@ -117,6 +117,33 @@
                 .toLowerCase();
         }
 
+        function normalizeSupervisor(value, fallback = '') {
+            const raw = String(value || '').trim();
+            if (!raw) return fallback;
+            const normalized = normalizeArabicValue(raw).replace(/\bال\s+/g, 'ال ');
+            const matched = DDL.sup.find(name => normalizeArabicValue(name) === normalized);
+            if (matched) return matched;
+            const compact = normalized.replace(/\s+/g, '');
+            const compactMatch = DDL.sup.find(name => normalizeArabicValue(name).replace(/\s+/g, '') === compact);
+            return compactMatch || raw;
+        }
+
+        function getImportedValue(row, keys) {
+            const wanted = Array.isArray(keys) ? keys : [keys];
+            for (const key of wanted) {
+                if (Object.prototype.hasOwnProperty.call(row, key) && row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
+                    return row[key];
+                }
+            }
+            const normalizedWanted = wanted.map(key => normalizeArabicValue(key));
+            const foundKey = Object.keys(row).find(key => {
+                const normalizedKey = normalizeArabicValue(key);
+                return normalizedWanted.includes(normalizedKey) ||
+                    normalizedWanted.some(wantedKey => normalizedKey.includes(wantedKey) || wantedKey.includes(normalizedKey));
+            });
+            return foundKey ? row[foundKey] : '';
+        }
+
         function normalizeExecutionPlace(value) {
             const raw = String(value || '').trim();
             const v = normalizeArabicValue(raw);
@@ -453,7 +480,7 @@
                 s: d.s || d[KEYS.s] || "",
                 e: d.e || d[KEYS.e] || "",
                 st: normalizeStatus(d.st || d[KEYS.st] || lastUsed.st || DDL.status[0]),
-                sp: d.sp || d[KEYS.sp] || lastUsed.sp || DDL.sup[0],
+                sp: normalizeSupervisor(d.sp || d[KEYS.sp], lastUsed.sp || DDL.sup[0]),
                 r: extractTrainingRoom(d.r || d[KEYS.r] || lastUsed.r || DDL.room[0]),
                 f: normalizeFloor(d.f || d[KEYS.f] || inferFloorFromRoom(d.r || d[KEYS.r], lastUsed.f || DDL.floor[0])),
                 p: normalizePeriod(d.p || d[KEYS.p] || lastUsed.p || DDL.period[0])
@@ -630,7 +657,7 @@
                 s: startDate,
                 e: endDate,
                 st: normalizeStatus(clean[4]),
-                sp: clean[5] || DDL.sup[0],
+                sp: normalizeSupervisor(clean[5], DDL.sup[0]),
                 r: room || DDL.room[0],
                 f: floor || DDL.floor[0],
                 p: period
@@ -729,20 +756,21 @@
                     const data = new Uint8Array(ev.target.result);
                     const workbook = XLSX.read(data, {type:'array', cellDates: true});
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const json = XLSX.utils.sheet_to_json(sheet);
+                    const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
                     document.getElementById('rows-box').innerHTML = '';
                     rows = [];
                     json.forEach(row => {
+                        const importedSupervisor = getImportedValue(row, [KEYS.sp, 'منسق التدريب', 'المنسق', 'اسم المنسق', 'مسؤول التدريب']);
                         addRow({
-                            n: row[KEYS.n] || '',
-                            loc: normalizeExecutionPlace(row[KEYS.loc]),
-                            s: parseExcelDate(row[KEYS.s]),
-                            e: parseExcelDate(row[KEYS.e]),
-                            st: normalizeStatus(row[KEYS.st]),
-                            sp: row[KEYS.sp] || DDL.sup[0],
-                            r: row[KEYS.r] || DDL.room[0],
-                            f: normalizeFloor(row[KEYS.f]),
-                            p: normalizePeriod(row[KEYS.p])
+                            n: getImportedValue(row, [KEYS.n, 'النشاط التدريبي', 'اسم الدورة', 'الدورة']) || '',
+                            loc: normalizeExecutionPlace(getImportedValue(row, [KEYS.loc, 'مقر التنفيذ', 'مكان الدورة', 'المكان'])),
+                            s: parseExcelDate(getImportedValue(row, [KEYS.s, 'بداية الدورة', 'البداية'])),
+                            e: parseExcelDate(getImportedValue(row, [KEYS.e, 'نهاية الدورة', 'النهاية'])),
+                            st: normalizeStatus(getImportedValue(row, [KEYS.st, 'حالة الدورة'])),
+                            sp: normalizeSupervisor(importedSupervisor, DDL.sup[0]),
+                            r: getImportedValue(row, [KEYS.r, 'قاعة التدريب', 'المعمل']) || DDL.room[0],
+                            f: normalizeFloor(getImportedValue(row, [KEYS.f, 'الدور'])),
+                            p: normalizePeriod(getImportedValue(row, [KEYS.p, 'النطاق', 'التوقيت']))
                         });
                     });
                     updateIdx();
@@ -1770,15 +1798,50 @@
             ctx.fillText(safe, x + w / 2, y + 37);
         }
 
+        function drawReferenceBackdrop(ctx, W, H, tone = '#f5f0e6') {
+            ctx.fillStyle = tone;
+            ctx.fillRect(0, 0, W, H);
+            ctx.save();
+            ctx.globalAlpha = 0.18;
+            ctx.strokeStyle = '#d0b284';
+            ctx.lineWidth = 1.5;
+            for (let x = -H; x < W; x += 94) {
+                ctx.beginPath();
+                ctx.moveTo(x, 610);
+                ctx.lineTo(x + H, H);
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 0.12;
+            ctx.fillStyle = '#123f3d';
+            for (let y = 675; y < H - 250; y += 310) {
+                ctx.fillRect(118, y, W - 236, 2);
+            }
+            ctx.restore();
+        }
+
         function drawReferenceHeader(ctx, W, logo, pageNo, align = 'center') {
             const headerH = 570;
             const grd = ctx.createLinearGradient(0, 0, W, headerH);
-            grd.addColorStop(0, '#092f30');
+            grd.addColorStop(0, '#062b2c');
+            grd.addColorStop(0.55, '#0b3a39');
             grd.addColorStop(1, '#123f3d');
             ctx.fillStyle = grd;
             ctx.fillRect(0, 0, W, headerH);
-            ctx.fillStyle = 'rgba(208,178,132,0.16)';
-            ctx.fillRect(0, headerH - 22, W, 22);
+            ctx.save();
+            ctx.globalAlpha = 0.12;
+            ctx.strokeStyle = UNI.gold;
+            ctx.lineWidth = 2;
+            for (let x = 80; x < W; x += 120) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x + 280, headerH);
+                ctx.stroke();
+            }
+            ctx.restore();
+            ctx.fillStyle = 'rgba(208,178,132,0.28)';
+            ctx.fillRect(0, headerH - 26, W, 26);
+            ctx.fillStyle = 'rgba(255,255,255,0.08)';
+            ctx.fillRect(0, headerH - 8, W, 8);
 
             if (logo && logo.width > 0) {
                 const logoW = 780;
@@ -1789,8 +1852,14 @@
 
             ctx.fillStyle = UNI.gold;
             ctx.textAlign = align === 'right' ? 'right' : 'center';
-            ctx.font = 'normal 82px Cairo';
+            ctx.font = 'normal 90px Cairo';
             ctx.fillText('جدول الدورات التدريبية', align === 'right' ? W - 130 : W / 2, 410);
+            ctx.strokeStyle = 'rgba(208,178,132,0.42)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(W / 2 - 300, 455);
+            ctx.lineTo(W / 2 + 300, 455);
+            ctx.stroke();
 
             ctx.strokeStyle = UNI.gold;
             ctx.lineWidth = 5;
@@ -1811,21 +1880,21 @@
             const boxW = (w - gap * 3) / 4;
             items.forEach((item, index) => {
                 const bx = x + index * (boxW + gap);
-                ctx.fillStyle = '#ffffff';
+                ctx.fillStyle = '#fffefb';
                 ctx.shadowColor = 'rgba(18,63,61,0.13)';
                 ctx.shadowBlur = 22;
                 ctx.shadowOffsetY = 8;
                 drawRoundedRect(ctx, bx, y, boxW, h, 18);
                 ctx.shadowColor = 'transparent';
-                ctx.strokeStyle = index === 3 ? 'rgba(208,178,132,0.82)' : '#e5e0d5';
+                ctx.strokeStyle = index === 3 ? 'rgba(208,178,132,0.95)' : '#ddd4c5';
                 ctx.lineWidth = 2;
                 ctx.strokeRect(bx, y, boxW, h);
                 ctx.fillStyle = '#1a3f41';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.font = `normal ${compact ? 58 : 72}px Cairo`;
+                ctx.font = `normal ${compact ? 64 : 76}px Cairo`;
                 ctx.fillText(item[1], bx + boxW / 2, y + h * 0.40);
-                ctx.font = `normal ${compact ? 26 : 30}px Cairo`;
+                ctx.font = `normal ${compact ? 29 : 32}px Cairo`;
                 ctx.fillText(item[0], bx + boxW / 2, y + h * 0.70);
             });
             ctx.textBaseline = 'alphabetic';
@@ -1870,12 +1939,15 @@
                 const bx = x + index * (boxW + gap);
                 ctx.fillStyle = tint;
                 drawRoundedRect(ctx, bx, y, boxW, h, 12);
+                ctx.strokeStyle = 'rgba(208,178,132,0.26)';
+                ctx.lineWidth = 1.4;
+                ctx.strokeRect(bx, y, boxW, h);
                 ctx.fillStyle = '#697371';
                 ctx.textAlign = 'center';
-                ctx.font = 'normal 21px Cairo';
+                ctx.font = 'normal 23px Cairo';
                 ctx.fillText(item[0], bx + boxW / 2, y + h * 0.35);
                 ctx.fillStyle = '#123f3d';
-                ctx.font = 'normal 27px Cairo';
+                ctx.font = 'normal 32px Cairo';
                 let value = String(item[1] || '-');
                 while (ctx.measureText(value).width > boxW - 20 && value.length > 0) value = value.slice(0, -1);
                 if (value !== String(item[1] || '-')) value += '...';
@@ -1885,12 +1957,11 @@
 
         function drawReferenceOneScreenCard(ctx, list, stats, pn, tp, si, logo) {
             const W = 2160, H = 3840;
-            ctx.fillStyle = '#f8f4ea';
-            ctx.fillRect(0, 0, W, H);
+            drawReferenceBackdrop(ctx, W, H, '#f8f3e8');
             drawReferenceHeader(ctx, W, logo, pn, 'center');
             drawReferenceStats(ctx, stats, 120, 680, W - 240);
-            let y = drawReferenceIntro(ctx, W, 1035);
-            const cardGap = 36;
+            let y = drawReferenceIntro(ctx, W, 1010, '#4f5f5c');
+            const cardGap = 30;
             const cardH = (H - y - 245 - cardGap * 3) / 4;
             for (let i = 0; i < list.length; i++) {
                 if (list[i]) drawReferenceOneCourse(ctx, list[i], 95, y, W - 190, cardH, si + i + 1);
@@ -1900,52 +1971,62 @@
         }
 
         function drawReferenceOneCourse(ctx, c, x, y, w, h, idx) {
-            const sideW = 360;
-            ctx.fillStyle = '#ffffff';
-            ctx.shadowColor = 'rgba(18,63,61,0.14)';
-            ctx.shadowBlur = 24;
-            ctx.shadowOffsetY = 10;
+            const sideW = 330;
+            ctx.fillStyle = '#fffefb';
+            ctx.shadowColor = 'rgba(18,63,61,0.18)';
+            ctx.shadowBlur = 30;
+            ctx.shadowOffsetY = 12;
             drawRoundedRect(ctx, x, y, w, h, 18);
             ctx.shadowColor = 'transparent';
+            ctx.strokeStyle = 'rgba(208,178,132,0.35)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, w, h);
             ctx.fillStyle = '#123f3d';
             drawRoundedRect(ctx, x + w - sideW, y, sideW, h, 18);
-            ctx.fillStyle = 'rgba(208,178,132,0.12)';
-            ctx.fillRect(x + w - sideW, y, 8, h);
+            ctx.fillStyle = 'rgba(208,178,132,0.25)';
+            ctx.fillRect(x + w - sideW, y, 10, h);
 
             ctx.fillStyle = UNI.gold;
             ctx.textAlign = 'center';
-            ctx.font = 'normal 88px Cairo';
+            ctx.font = 'normal 104px Cairo';
             ctx.fillText(String(idx), x + w - sideW / 2, y + 122);
+            ctx.strokeStyle = 'rgba(208,178,132,0.45)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x + w - sideW + 58, y + 150);
+            ctx.lineTo(x + w - 58, y + 150);
+            ctx.stroke();
             ctx.fillStyle = '#f7efe2';
-            ctx.font = 'normal 27px Cairo';
-            ctx.fillText('منسق التدريب', x + w - sideW / 2, y + h - 145);
+            ctx.font = 'normal 28px Cairo';
+            ctx.fillText('منسق التدريب', x + w - sideW / 2, y + h - 132);
             ctx.fillStyle = '#ffffff';
-            ctx.font = 'normal 30px Cairo';
+            ctx.font = 'normal 34px Cairo';
             wrapTextSimple(ctx, c.sp || '-', sideW - 70).slice(0, 2).forEach((line, lineIndex) => {
-                ctx.fillText(line, x + w - sideW / 2, y + h - 100 + lineIndex * 38);
+                ctx.fillText(line, x + w - sideW / 2, y + h - 88 + lineIndex * 40);
             });
 
             const bodyW = w - sideW - 44;
             ctx.fillStyle = '#1f3838';
             ctx.textAlign = 'center';
-            const title = wrapTextSmart(ctx, c.n + (isExternalExecution(c.loc) ? '  🌐' : ''), bodyW - 130, 2, 52);
+            const title = wrapTextSmart(ctx, c.n + (isExternalExecution(c.loc) ? '  🌐' : ''), bodyW - 150, 2, 62);
             ctx.font = `normal ${title.fontSize}px Cairo`;
-            let titleY = y + 92;
+            let titleY = y + 98;
             title.lines.forEach(line => { ctx.fillText(line, x + bodyW / 2, titleY); titleY += title.lineHeight; });
             ctx.fillStyle = '#52615f';
-            ctx.font = 'normal 30px Cairo';
-            ctx.fillText(`${c.s}  -  ${c.e}`, x + bodyW / 2, y + 170);
-            drawReferenceChips(ctx, c, x + 40, y + h - 145, bodyW - 80, 94, '#f6f1e8');
+            ctx.font = 'normal 34px Cairo';
+            ctx.fillText(`${c.s}  -  ${c.e}`, x + bodyW / 2, y + 188);
+            ctx.fillStyle = 'rgba(208,178,132,0.18)';
+            drawRoundedRect(ctx, x + 55, y + h - 172, bodyW - 110, 126, 18);
+            drawReferenceChips(ctx, c, x + 72, y + h - 158, bodyW - 144, 98, '#fbf7ef');
         }
 
         function drawReferenceTwoScreenCard(ctx, list, stats, pn, tp, si, logo) {
             const W = 2160, H = 3840;
-            ctx.fillStyle = '#fbfaf6';
-            ctx.fillRect(0, 0, W, H);
+            drawReferenceBackdrop(ctx, W, H, '#fbf7ef');
             drawReferenceHeader(ctx, W, logo, pn, 'center');
             drawReferenceStats(ctx, stats, 160, 700, W - 320, true);
-            let y = drawReferenceIntro(ctx, W, 995);
-            const cardGap = 42;
+            let y = drawReferenceIntro(ctx, W, 980, '#4f5f5c');
+            const cardGap = 32;
             const cardH = (H - y - 245 - cardGap * 3) / 4;
             for (let i = 0; i < list.length; i++) {
                 if (list[i]) drawReferenceTwoCourse(ctx, list[i], 150, y, W - 300, cardH, si + i + 1);
@@ -1956,65 +2037,72 @@
 
         function drawReferenceTwoCourse(ctx, c, x, y, w, h, idx) {
             const dateW = 235;
-            const supW = 245;
-            ctx.fillStyle = '#ffffff';
-            ctx.shadowColor = 'rgba(18,63,61,0.13)';
-            ctx.shadowBlur = 22;
-            ctx.shadowOffsetY = 9;
+            const supW = 300;
+            ctx.fillStyle = '#fffefb';
+            ctx.shadowColor = 'rgba(18,63,61,0.18)';
+            ctx.shadowBlur = 30;
+            ctx.shadowOffsetY = 12;
             drawRoundedRect(ctx, x, y, w, h, 16);
             ctx.shadowColor = 'transparent';
+            ctx.strokeStyle = 'rgba(208,178,132,0.34)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, w, h);
 
             ctx.fillStyle = '#123f3d';
             drawRoundedRect(ctx, x, y, dateW, h, 16);
             ctx.fillStyle = UNI.gold;
             ctx.textAlign = 'center';
-            ctx.font = 'normal 58px Cairo';
-            ctx.fillText(String(idx), x + 52, y + 76);
+            ctx.font = 'normal 72px Cairo';
+            ctx.fillText(String(idx), x + 62, y + 86);
             ctx.fillStyle = '#ffffff';
-            ctx.font = 'normal 27px Cairo';
-            ctx.fillText(c.s || '-', x + dateW / 2, y + h / 2 - 12);
-            ctx.fillText(c.e || '-', x + dateW / 2, y + h / 2 + 34);
+            ctx.font = 'normal 30px Cairo';
+            ctx.fillText(c.s || '-', x + dateW / 2, y + h / 2 - 20);
+            ctx.fillStyle = 'rgba(255,255,255,0.52)';
+            ctx.fillRect(x + 58, y + h / 2, dateW - 116, 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(c.e || '-', x + dateW / 2, y + h / 2 + 48);
 
             ctx.fillStyle = '#123f3d';
-            ctx.beginPath();
-            ctx.arc(x + w - 88, y + 74, 46, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = UNI.gold;
-            ctx.lineWidth = 4;
-            ctx.stroke();
+            drawRoundedRect(ctx, x + w - supW, y, supW, h, 16);
+            ctx.fillStyle = 'rgba(208,178,132,0.16)';
+            ctx.fillRect(x + w - supW, y, 9, h);
             ctx.fillStyle = UNI.gold;
-            ctx.font = 'normal 43px Cairo';
-            ctx.fillText('♙', x + w - 88, y + 88);
-            ctx.fillStyle = '#9a7540';
-            ctx.font = 'normal 24px Cairo';
-            ctx.fillText('منسق التدريب', x + w - supW / 2, y + h - 88);
-            ctx.fillStyle = '#123f3d';
-            ctx.font = 'normal 28px Cairo';
+            ctx.font = 'normal 52px Cairo';
+            ctx.fillText('♙', x + w - supW / 2, y + 85);
+            ctx.fillStyle = '#f7efe2';
+            ctx.font = 'normal 27px Cairo';
+            ctx.fillText('منسق التدريب', x + w - supW / 2, y + h - 122);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'normal 33px Cairo';
             let sup = String(c.sp || '-');
-            while (ctx.measureText(sup).width > supW - 22 && sup.length > 0) sup = sup.slice(0, -1);
+            while (ctx.measureText(sup).width > supW - 50 && sup.length > 0) sup = sup.slice(0, -1);
             if (sup !== String(c.sp || '-')) sup += '...';
-            ctx.fillText(sup, x + w - supW / 2, y + h - 48);
+            ctx.fillText(sup, x + w - supW / 2, y + h - 72);
 
             const contentX = x + dateW + 34;
-            const contentW = w - dateW - supW - 62;
+            const contentW = w - dateW - supW - 76;
             ctx.fillStyle = '#1f3838';
             ctx.textAlign = 'center';
-            const title = wrapTextSmart(ctx, c.n + (isExternalExecution(c.loc) ? '  🌐' : ''), contentW - 90, 2, 48);
+            const title = wrapTextSmart(ctx, c.n + (isExternalExecution(c.loc) ? '  🌐' : ''), contentW - 110, 2, 60);
             ctx.font = `normal ${title.fontSize}px Cairo`;
-            let titleY = y + 90;
+            let titleY = y + 96;
             title.lines.forEach(line => { ctx.fillText(line, contentX + contentW / 2, titleY); titleY += title.lineHeight; });
-            drawReferenceChips(ctx, c, contentX + 20, y + h - 128, contentW - 40, 86, '#faf7ef');
+            ctx.fillStyle = '#60706d';
+            ctx.font = 'normal 32px Cairo';
+            ctx.fillText(`${c.s || '-'}  -  ${c.e || '-'}`, contentX + contentW / 2, y + 180);
+            ctx.fillStyle = 'rgba(208,178,132,0.14)';
+            drawRoundedRect(ctx, contentX + 16, y + h - 150, contentW - 32, 112, 18);
+            drawReferenceChips(ctx, c, contentX + 32, y + h - 138, contentW - 64, 88, '#fbf7ef');
         }
 
         function drawReferenceThreeScreenCard(ctx, list, stats, pn, tp, si, logo) {
             const W = 2160, H = 3840;
-            ctx.fillStyle = '#f7f3e9';
-            ctx.fillRect(0, 0, W, H);
+            drawReferenceBackdrop(ctx, W, H, '#f7f1e7');
             drawReferenceHeader(ctx, W, logo, pn, 'center');
             drawReferenceStats(ctx, stats, 120, 695, W - 240, true);
-            let y = drawReferenceIntro(ctx, W, 990);
+            let y = drawReferenceIntro(ctx, W, 976, '#4f5f5c');
             const lineX = 210;
-            const cardGap = 40;
+            const cardGap = 32;
             const cardH = (H - y - 250 - cardGap * 3) / 4;
             ctx.strokeStyle = 'rgba(208,178,132,0.75)';
             ctx.lineWidth = 6;
@@ -2046,38 +2134,45 @@
             ctx.lineTo(x, y + h / 2);
             ctx.stroke();
 
-            const supW = 285;
-            ctx.fillStyle = '#ffffff';
-            ctx.shadowColor = 'rgba(18,63,61,0.14)';
-            ctx.shadowBlur = 22;
-            ctx.shadowOffsetY = 8;
+            const supW = 300;
+            ctx.fillStyle = '#fffefb';
+            ctx.shadowColor = 'rgba(18,63,61,0.18)';
+            ctx.shadowBlur = 30;
+            ctx.shadowOffsetY = 12;
             drawRoundedRect(ctx, x, y, w, h, 18);
             ctx.shadowColor = 'transparent';
+            ctx.strokeStyle = 'rgba(208,178,132,0.34)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, w, h);
             ctx.fillStyle = '#123f3d';
             drawRoundedRect(ctx, x + w - supW, y, supW, h, 18);
+            ctx.fillStyle = 'rgba(208,178,132,0.16)';
+            ctx.fillRect(x + w - supW, y, 9, h);
 
             ctx.fillStyle = UNI.gold;
-            ctx.font = 'normal 44px Cairo';
-            ctx.fillText('♙', x + w - supW / 2, y + 75);
+            ctx.font = 'normal 52px Cairo';
+            ctx.fillText('♙', x + w - supW / 2, y + 82);
             ctx.fillStyle = '#f7efe2';
-            ctx.font = 'normal 24px Cairo';
-            ctx.fillText('منسق التدريب', x + w - supW / 2, y + h / 2 - 5);
+            ctx.font = 'normal 27px Cairo';
+            ctx.fillText('منسق التدريب', x + w - supW / 2, y + h / 2 - 8);
             ctx.fillStyle = '#ffffff';
-            ctx.font = 'normal 28px Cairo';
+            ctx.font = 'normal 33px Cairo';
             wrapTextSimple(ctx, c.sp || '-', supW - 45).slice(0, 2).forEach((line, i) => {
-                ctx.fillText(line, x + w - supW / 2, y + h / 2 + 38 + i * 34);
+                ctx.fillText(line, x + w - supW / 2, y + h / 2 + 42 + i * 40);
             });
 
             const contentW = w - supW - 36;
             ctx.fillStyle = '#173b3b';
-            const title = wrapTextSmart(ctx, c.n + (isExternalExecution(c.loc) ? '  🌐' : ''), contentW - 100, 2, 48);
+            const title = wrapTextSmart(ctx, c.n + (isExternalExecution(c.loc) ? '  🌐' : ''), contentW - 115, 2, 60);
             ctx.font = `normal ${title.fontSize}px Cairo`;
-            let ty = y + 86;
+            let ty = y + 96;
             title.lines.forEach(line => { ctx.fillText(line, x + contentW / 2, ty); ty += title.lineHeight; });
             ctx.fillStyle = '#365351';
-            ctx.font = 'normal 28px Cairo';
-            ctx.fillText(`${c.s || '-'}  -  ${c.e || '-'}`, x + contentW / 2, y + 168);
-            drawReferenceChips(ctx, c, x + 34, y + h - 126, contentW - 70, 86, '#f6f1e8');
+            ctx.font = 'normal 32px Cairo';
+            ctx.fillText(`${c.s || '-'}  -  ${c.e || '-'}`, x + contentW / 2, y + 180);
+            ctx.fillStyle = 'rgba(208,178,132,0.15)';
+            drawRoundedRect(ctx, x + 38, y + h - 150, contentW - 76, 112, 18);
+            drawReferenceChips(ctx, c, x + 54, y + h - 138, contentW - 108, 88, '#fbf7ef');
         }
 
         function wrapTextSimple(ctx, text, maxWidth) {
