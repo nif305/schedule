@@ -1,6 +1,7 @@
 // --- 1. Setup & Helpers ---
         let rows = [];
         let currentTemplate = 1;
+        const ALLOWED_TEMPLATES = new Set([1, 2, 3, 4, 12, 13, 14]);
         let logoImage = null; 
         let darkLogoImage = null;
         let lastBlob = null; 
@@ -325,6 +326,8 @@
         }
 
         function selectTemplate(id) {
+            id = Number(id);
+            if (!ALLOWED_TEMPLATES.has(id)) id = 1;
             currentTemplate = id;
             document.querySelectorAll('.template-thumb').forEach(el => el.classList.remove('selected'));
             const selected = document.getElementById('tpl-' + id);
@@ -1171,10 +1174,6 @@
         // Screen Card Drawing (Templates)
         // ---------------------------------------------------------
         function drawScreenCard(ctx, list, stats, pn, tp, si, logo) {
-            if (currentTemplate === 8) { drawN8NScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
-            if (currentTemplate === 9) { drawN9NScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
-            if (currentTemplate === 10) { drawOpsScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
-            if (currentTemplate === 11) { drawTimelineScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
             if (currentTemplate === 12) { drawReferenceOneScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
             if (currentTemplate === 13) { drawReferenceTwoScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
             if (currentTemplate === 14) { drawReferenceThreeScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
@@ -1802,81 +1801,55 @@
             ctx.fillStyle = tone;
             ctx.fillRect(0, 0, W, H);
             ctx.save();
-            ctx.globalAlpha = 0.18;
-            ctx.strokeStyle = '#d0b284';
-            ctx.lineWidth = 1.5;
-            for (let x = -H; x < W; x += 94) {
-                ctx.beginPath();
-                ctx.moveTo(x, 610);
-                ctx.lineTo(x + H, H);
-                ctx.stroke();
-            }
-            ctx.globalAlpha = 0.12;
-            ctx.fillStyle = '#123f3d';
-            for (let y = 675; y < H - 250; y += 310) {
-                ctx.fillRect(118, y, W - 236, 2);
-            }
+            ctx.globalAlpha = 0.22;
+            const wash = ctx.createRadialGradient(W * 0.50, 760, 80, W * 0.50, 760, W * 0.72);
+            wash.addColorStop(0, 'rgba(208,178,132,0.34)');
+            wash.addColorStop(1, 'rgba(208,178,132,0)');
+            ctx.fillStyle = wash;
+            ctx.fillRect(0, 560, W, H - 560);
             ctx.restore();
         }
 
         function drawReferenceHeader(ctx, W, logo, pageNo, align = 'center') {
-            const headerH = 570;
+            const headerH = 555;
             const grd = ctx.createLinearGradient(0, 0, W, headerH);
             grd.addColorStop(0, '#062b2c');
             grd.addColorStop(0.55, '#0b3a39');
             grd.addColorStop(1, '#123f3d');
             ctx.fillStyle = grd;
             ctx.fillRect(0, 0, W, headerH);
-            ctx.save();
-            ctx.globalAlpha = 0.12;
-            ctx.strokeStyle = UNI.gold;
-            ctx.lineWidth = 2;
-            for (let x = 80; x < W; x += 120) {
-                ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x + 280, headerH);
-                ctx.stroke();
-            }
-            ctx.restore();
-            ctx.fillStyle = 'rgba(208,178,132,0.28)';
-            ctx.fillRect(0, headerH - 26, W, 26);
-            ctx.fillStyle = 'rgba(255,255,255,0.08)';
-            ctx.fillRect(0, headerH - 8, W, 8);
+            ctx.fillStyle = 'rgba(208,178,132,0.20)';
+            ctx.fillRect(0, headerH - 18, W, 18);
 
             if (logo && logo.width > 0) {
-                const logoW = 780;
+                const logoW = 720;
                 const logoH = logoW * (logo.height / logo.width);
                 const logoX = align === 'right' ? W - logoW - 130 : (W - logoW) / 2;
-                ctx.drawImage(logo, logoX, 82, logoW, logoH);
+                ctx.drawImage(logo, logoX, 74, logoW, logoH);
             }
 
             ctx.fillStyle = UNI.gold;
             ctx.textAlign = align === 'right' ? 'right' : 'center';
-            ctx.font = 'normal 90px Cairo';
-            ctx.fillText('جدول الدورات التدريبية', align === 'right' ? W - 130 : W / 2, 410);
-            ctx.strokeStyle = 'rgba(208,178,132,0.42)';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(W / 2 - 300, 455);
-            ctx.lineTo(W / 2 + 300, 455);
-            ctx.stroke();
+            ctx.font = 'normal 94px Cairo';
+            ctx.fillText('جدول الدورات التدريبية', align === 'right' ? W - 130 : W / 2, 402);
 
             ctx.strokeStyle = UNI.gold;
             ctx.lineWidth = 5;
             ctx.beginPath();
-            ctx.arc(W - 120, 120, 62, 0, Math.PI * 2);
+            ctx.arc(W - 120, 112, 62, 0, Math.PI * 2);
             ctx.stroke();
             ctx.fillStyle = UNI.gold;
             ctx.textAlign = 'center';
             ctx.font = 'normal 56px Cairo';
-            ctx.fillText(String(pageNo), W - 120, 139);
+            ctx.fillText(String(pageNo), W - 120, 131);
             return headerH;
         }
 
         function drawReferenceStats(ctx, stats, x, y, w, compact = false) {
             const items = [['إجمالي', stats.t], ['جديدة', stats.n], ['مستمرة', stats.c], ['خارجية', stats.i]];
-            const gap = compact ? 24 : 34;
-            const h = compact ? 150 : 185;
+            const icons = ['♧', '▣', '◷', '◎'];
+            const gap = compact ? 34 : 34;
+            const h = compact ? 150 : 165;
             const boxW = (w - gap * 3) / 4;
             items.forEach((item, index) => {
                 const bx = x + index * (boxW + gap);
@@ -1889,13 +1862,16 @@
                 ctx.strokeStyle = index === 3 ? 'rgba(208,178,132,0.95)' : '#ddd4c5';
                 ctx.lineWidth = 2;
                 ctx.strokeRect(bx, y, boxW, h);
+                ctx.fillStyle = '#6a7774';
+                ctx.font = `normal ${compact ? 26 : 28}px Cairo`;
+                ctx.fillText(icons[index], bx + boxW / 2, y + h * 0.24);
                 ctx.fillStyle = '#1a3f41';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.font = `normal ${compact ? 64 : 76}px Cairo`;
-                ctx.fillText(item[1], bx + boxW / 2, y + h * 0.40);
+                ctx.fillText(item[1], bx + boxW / 2, y + h * 0.50);
                 ctx.font = `normal ${compact ? 29 : 32}px Cairo`;
-                ctx.fillText(item[0], bx + boxW / 2, y + h * 0.70);
+                ctx.fillText(item[0], bx + boxW / 2, y + h * 0.78);
             });
             ctx.textBaseline = 'alphabetic';
         }
@@ -1903,14 +1879,19 @@
         function drawReferenceIntro(ctx, W, y, color = '#4a5f5c') {
             const introText = getScreenIntroText();
             if (!introText) return y;
+            ctx.fillStyle = 'rgba(255,254,251,0.74)';
+            drawRoundedRect(ctx, 150, y - 50, W - 300, 110, 14);
+            ctx.strokeStyle = 'rgba(208,178,132,0.22)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(150, y - 50, W - 300, 110);
             ctx.fillStyle = color;
             ctx.textAlign = 'center';
-            ctx.font = 'normal 36px Cairo';
+            ctx.font = 'normal 35px Cairo';
             wrapTextSimple(ctx, introText, W - 320).slice(0, 2).forEach(line => {
                 ctx.fillText(line, W / 2, y);
                 y += 50;
             });
-            return y + 42;
+            return y + 46;
         }
 
         function drawReferenceFooter(ctx, W, H, dark = true) {
