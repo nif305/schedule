@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="منصة توليد جدول الدورات التدريبية الأسبوعي" />
-  <title>منصة توليد جدول الدورات التدريبية - جامعة نايف</title>
+  <meta name="description" content="منصة توليد جدول الدورات التدريبية الأسبوعي - جامعة نايف العربية للعلوم الأمنية" />
+  <title>منصة جدول الدورات التدريبية — جامعة نايف</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,156 +15,290 @@
   <link rel="stylesheet" href="./src/styles.css" />
 </head>
 <body>
-<div id="toast-container"></div>
 
-    <header class="bg-white border-b shadow-sm sticky top-0 z-50 relative">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-            <div class="flex items-center gap-4">
-                <a href="#" onclick="showPage('generator')">
-                    <img src="https://nauss.edu.sa/Style%20Library/ar-sa/Styles/images/home/Logo.svg" alt="Logo" class="h-20 object-contain"> 
-                </a>
-            </div>
-            <div class="flex justify-end gap-1 md:gap-4">
-                <div class="nav-tab active" onclick="resetAndShowGenerator()">
-                    <span>➕</span> جدول جديد
-                </div>
-                <div class="nav-tab" onclick="showPage('archive')">
-                    <span>🗂️</span> الجداول المنشأة
-                </div>
-            </div>
-        </div>
-    </header>
+<!-- Toast Container -->
+<div id="toast-container" role="status" aria-live="polite"></div>
 
-    <main class="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6">
-        
-        <div id="page-generator" class="page-container active space-y-6">
-            
-            <div class="flex justify-between items-center">
-                 <h2 class="text-lg font-bold text-slate-700">تعبئة البيانات</h2>
-                 <button onclick="clearCurrentData()" class="text-xs text-red-500 hover:text-red-700 font-semibold flex items-center gap-1">
-                     <span>🗑️</span> مسح البيانات
-                 </button>
-            </div>
+<!-- ============================================================
+     HEADER
+     ============================================================ -->
+<header class="bg-white border-b sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-2.5 flex justify-between items-center">
 
-            <div class="bg-white rounded-xl shadow-sm p-4 border grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="space-y-3">
-                    <div class="flex gap-2">
-                        <div class="flex-1">
-                            <label class="text-xs text-slate-500 block mb-1">رقم الأسبوع</label>
-                            <input type="number" id="w-id" class="form-input text-center font-bold border-slate-300" value="1">
-                        </div>
-                        <div class="flex-1">
-                            <label class="text-xs text-slate-500 block mb-1">الموظف المسؤول</label>
-                            <select id="owner-select" class="form-input text-center font-bold border-slate-300">
-                                <option value="" selected disabled>اختر</option>
-                                <option value="نايف الشهراني">نايف الشهراني</option>
-                                <option value="مزنة آل محمود">مزنة آل محمود</option>
-                                <option value="وليد السليم">وليد السليم</option>
-                                <option value="خازم الأسمري">خازم الأسمري</option>
-                                <option value="فؤاد نعمان">فؤاد نعمان</option>
-                                <option value="عبدالمحسن العنزي">عبدالمحسن العنزي</option>
-                                <option value="بشاير الطحيني">بشاير الطحيني</option>
-                                <option value="يعقوب الشمري">يعقوب الشمري</option>
-                            </select>
-                        </div>
-                    </div>
+        <!-- Logo -->
+        <a href="#" onclick="showPage('generator')" aria-label="الصفحة الرئيسية">
+            <img src="https://nauss.edu.sa/Style%20Library/ar-sa/Styles/images/home/Logo.svg"
+                 alt="شعار جامعة نايف العربية للعلوم الأمنية"
+                 class="h-20 object-contain">
+        </a>
 
-                    <div class="flex gap-2">
-                        <div class="flex-1">
-                            <label class="text-xs text-slate-500 block mb-1">استيراد جدول</label>
-                            <label class="form-input text-center cursor-pointer text-xs flex items-center justify-center border-slate-200 hover:bg-slate-50">
-                                📤 رفع
-                                <input type="file" id="x-f" class="hidden" accept=".xlsx,.xls" onchange="rdExcel(event)">
-                            </label>
-                        </div>
-                        <div class="flex-1">
-                             <label class="text-xs text-slate-500 block mb-1">قالب Excel</label>
-                             <button onclick="dlTpl()" class="form-input text-center text-xs hover:bg-slate-50">📥 تحميل</button>
-                        </div>
-                    </div>
-                    
-                    <div class="flex gap-2">
-                        <button onclick="addRow()" class="btn-main flex-1 text-sm justify-center">+ إضافة دورة</button>
-                    </div>
-                </div>
-
-                <div class="col-span-2">
-                    <label class="text-xs font-bold text-slate-600 block mb-2">اختر نمط التصميم</label>
-                    <div class="grid grid-cols-4 md:grid-cols-7 gap-2">
-                        <div onclick="selectTemplate(1)" class="template-thumb selected" id="tpl-1">
-                            <div class="w-full h-full bg-gradient-to-br from-white to-slate-50 flex items-center justify-center text-[#2c6060] text-[7px] font-bold border-b-4 border-[#2c6060]">MODERN</div>
-                        </div>
-                        <div onclick="selectTemplate(2)" class="template-thumb" id="tpl-2">
-                            <div class="w-full h-full bg-[#016564] flex items-center justify-center text-[#d0b284] text-[7px] font-bold">LUXURY</div>
-                        </div>
-                        <div onclick="selectTemplate(3)" class="template-thumb" id="tpl-3">
-                            <div class="w-full h-full bg-gradient-to-r from-teal-500 to-blue-500 flex items-center justify-center text-white text-[7px] font-bold">VIBRANT</div>
-                        </div>
-                        <div onclick="selectTemplate(4)" class="template-thumb" id="tpl-4">
-                            <div class="w-full h-full bg-[#f5f5f7] flex items-center justify-center text-[#1d1d1f] text-[7px] font-bold">iOS</div>
-                        </div>
-                        <div onclick="selectTemplate(12)" class="template-thumb" id="tpl-12">
-                            <div class="w-full h-full bg-[#f8f4ea] flex items-center justify-center text-[#0d3d3c] text-[7px] font-bold border-t-[10px] border-[#0d3d3c]">REF 1</div>
-                        </div>
-                        <div onclick="selectTemplate(13)" class="template-thumb" id="tpl-13">
-                            <div class="w-full h-full bg-[#fbfaf6] flex items-center justify-center text-[#d0b284] text-[7px] font-bold border-b-[10px] border-[#0d3d3c]">REF 2</div>
-                        </div>
-                        <div onclick="selectTemplate(14)" class="template-thumb" id="tpl-14">
-                            <div class="w-full h-full bg-[#f7f3e9] flex items-center justify-center text-[#0d3d3c] text-[7px] font-bold border-r-[10px] border-[#d0b284]">REF 3</div>
-                        </div>
-                    </div>
-
-                    <div class="mt-4 bg-slate-50 border rounded-lg p-3 space-y-2">
-                        <label class="text-xs font-bold text-slate-600 block">النص التمهيدي لصور العرض</label>
-                        <select id="intro-mode" class="form-input text-xs" onchange="handleIntroModeChange()">
-                            <option value="default" selected>العبارة الافتراضية لبرنامج الشراكات الدولية بوزارة الداخلية</option>
-                            <option value="custom">نص مخصص</option>
-                            <option value="none">بدون نص تمهيدي</option>
-                        </select>
-                        <textarea id="intro-custom" class="form-input text-xs hidden min-h-[78px] resize-y" oninput="saveIntroSettings()" placeholder="اكتب النص التمهيدي الذي سيظهر في صور العرض"></textarea>
-                    </div>
-                    
-                    <!-- Separated Buttons -->
-                    <div class="mt-4 space-y-2">
-                        <!-- Row 1: Screens -->
-                        <div class="flex gap-2 items-center">
-                            <button onclick="startScreenSave()" class="flex-1 btn-main text-sm justify-center bg-slate-600"> 🖼️ توليد صور العرض </button>
-                            <button id="btn-share-screen" onclick="shareScreenImages()" title="شارك مع شاشة مدخل المبنى" class="btn-icon">📤</button>
-                        </div>
-                        <!-- Row 2: Report -->
-                        <div class="flex gap-2 items-center">
-                            <button onclick="startAgentReport()" class="flex-1 btn-main text-sm justify-center bg-[#016564]"> 📄 توليد تقرير الوكيل </button>
-                            <button id="btn-share-report" onclick="shareAgentReport()" title="شارك مع الوكيل" class="btn-icon">📤</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="rows-box" class="space-y-2 pb-4"></div>
-
-        </div>
-
-        <div id="page-archive" class="page-container">
-            <div class="bg-white rounded-xl shadow-sm p-6 min-h-[60vh]">
-                <div class="flex justify-between items-center mb-4 border-b pb-2">
-                    <h2 class="text-xl font-bold text-[#2c6060]">الجداول المنشأة سابقاً</h2>
-                </div>
-                <div id="archive-list" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
-                <div id="no-archive" class="text-center text-slate-400 py-10 hidden">لا توجد بيانات مؤرشفة.</div>
-            </div>
-        </div>
-
-    </main>
-
-    <footer class="bg-white border-t mt-auto py-4 text-center text-sm text-slate-500">
-        <div class="font-bold text-slate-700">جميع الحقوق محفوظة Nalshahrani 2026</div>
-    </footer>
-
-    <div id="loader" class="fixed inset-0 bg-white/95 z-[100] hidden flex-col items-center justify-center gap-4">
-        <div class="w-12 h-12 border-4 border-slate-200 border-t-[#2c6060] rounded-full animate-spin"></div>
-        <span id="loader-text" class="font-bold text-slate-600">جاري التوليد...</span>
+        <!-- Navigation -->
+        <nav class="flex items-center gap-1.5" aria-label="التنقل الرئيسي">
+            <button class="nav-tab active" onclick="resetAndShowGenerator()" aria-label="إنشاء جدول جديد">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 5v14M5 12h14"/>
+                </svg>
+                جدول جديد
+            </button>
+            <button class="nav-tab" onclick="showPage('archive')" aria-label="الجداول المنشأة">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="2" y="3" width="20" height="5" rx="1"/>
+                    <path d="M2 8h20v13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8z"/>
+                    <path d="m9 13 2 2 4-4"/>
+                </svg>
+                الجداول المنشأة
+            </button>
+        </nav>
     </div>
+</header>
 
-    <script src="./src/app.js"></script>
+<!-- ============================================================
+     MAIN CONTENT
+     ============================================================ -->
+<main class="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6" id="main-content">
+
+    <!-- ====================================================
+         PAGE: GENERATOR
+         ==================================================== -->
+    <div id="page-generator" class="page-container active space-y-5">
+
+        <!-- Section Header -->
+        <div class="flex justify-between items-center">
+            <div>
+                <h2 class="text-lg font-bold">تعبئة البيانات</h2>
+                <p class="text-xs text-slate-400 mt-0.5">أدخل بيانات الأنشطة التدريبية للأسبوع المطلوب</p>
+            </div>
+            <button onclick="clearCurrentData()" class="btn-danger flex items-center gap-1.5" aria-label="مسح جميع البيانات">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="m19 6-.867 12.142A2 2 0 0 1 16.138 20H7.862a2 2 0 0 1-1.995-1.858L5 6"/>
+                    <path d="M10 11v6M14 11v6"/>
+                    <path d="m8.5 6 .5-3h6l.5 3"/>
+                </svg>
+                مسح البيانات
+            </button>
+        </div>
+
+        <!-- Settings Card -->
+        <div class="bg-white rounded-xl shadow-sm p-4 border grid grid-cols-1 md:grid-cols-3 gap-5">
+
+            <!-- LEFT: Controls -->
+            <div class="space-y-3.5">
+
+                <!-- Week + Owner -->
+                <div class="flex gap-2.5">
+                    <div class="flex-1">
+                        <label class="field-label" for="w-id">رقم الأسبوع</label>
+                        <input type="number" id="w-id" class="form-input text-center font-bold" value="1"
+                               aria-label="رقم الأسبوع" min="1" max="53">
+                    </div>
+                    <div class="flex-1">
+                        <label class="field-label" for="owner-select">الموظف المسؤول</label>
+                        <select id="owner-select" class="form-input font-bold" aria-label="اختر الموظف المسؤول">
+                            <option value="" selected disabled>اختر...</option>
+                            <option value="نايف الشهراني">نايف الشهراني</option>
+                            <option value="مزنة آل محمود">مزنة آل محمود</option>
+                            <option value="وليد السليم">وليد السليم</option>
+                            <option value="خازم الأسمري">خازم الأسمري</option>
+                            <option value="فؤاد نعمان">فؤاد نعمان</option>
+                            <option value="عبدالمحسن العنزي">عبدالمحسن العنزي</option>
+                            <option value="بشاير الطحيني">بشاير الطحيني</option>
+                            <option value="يعقوب الشمري">يعقوب الشمري</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Import / Template -->
+                <div class="flex gap-2.5">
+                    <div class="flex-1">
+                        <label class="field-label">استيراد جدول</label>
+                        <label class="form-input cursor-pointer flex items-center justify-center gap-1.5 text-sm hover:bg-slate-50 border-dashed"
+                               aria-label="رفع ملف Excel">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            رفع ملف
+                            <input type="file" id="x-f" class="hidden" accept=".xlsx,.xls" onchange="rdExcel(event)">
+                        </label>
+                    </div>
+                    <div class="flex-1">
+                        <label class="field-label">قالب Excel</label>
+                        <button onclick="dlTpl()" class="form-input flex items-center justify-center gap-1.5 text-sm hover:bg-slate-50"
+                                aria-label="تحميل قالب Excel">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            تحميل
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Add row -->
+                <button onclick="addRow()" class="btn-main w-full" aria-label="إضافة دورة تدريبية جديدة">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    إضافة دورة
+                </button>
+            </div>
+
+            <!-- RIGHT: Template + Intro + Actions -->
+            <div class="col-span-2 space-y-4">
+
+                <!-- Template selector -->
+                <div>
+                    <label class="field-label">نمط التصميم</label>
+                    <div class="grid grid-cols-4 md:grid-cols-7 gap-2">
+                        <div onclick="selectTemplate(1)" class="template-thumb selected" id="tpl-1" title="Modern" role="button" tabindex="0" aria-label="قالب MODERN">
+                            <div class="w-full h-full bg-gradient-to-br from-white to-slate-50 flex items-center justify-center text-[#2c6060] text-[8px] font-black border-b-2 border-[#016564]">MODERN</div>
+                        </div>
+                        <div onclick="selectTemplate(2)" class="template-thumb" id="tpl-2" title="Luxury" role="button" tabindex="0" aria-label="قالب LUXURY">
+                            <div class="w-full h-full bg-[#016564] flex items-center justify-center text-[#d0b284] text-[8px] font-black">LUXURY</div>
+                        </div>
+                        <div onclick="selectTemplate(3)" class="template-thumb" id="tpl-3" title="Vibrant" role="button" tabindex="0" aria-label="قالب VIBRANT">
+                            <div class="w-full h-full bg-gradient-to-r from-teal-500 to-blue-500 flex items-center justify-center text-white text-[8px] font-black">VIBRANT</div>
+                        </div>
+                        <div onclick="selectTemplate(4)" class="template-thumb" id="tpl-4" title="iOS" role="button" tabindex="0" aria-label="قالب iOS">
+                            <div class="w-full h-full bg-[#f5f5f7] flex flex-col items-center justify-center gap-0.5">
+                                <div class="w-4 h-4 rounded bg-[#1d1d1f]"></div>
+                                <div class="text-[7px] font-black text-[#1d1d1f]">iOS</div>
+                            </div>
+                        </div>
+                        <div onclick="selectTemplate(12)" class="template-thumb" id="tpl-12" title="Reference 1" role="button" tabindex="0" aria-label="قالب REF 1">
+                            <div class="w-full h-full bg-[#f8f4ea] flex items-center justify-center text-[#0d3d3c] text-[8px] font-black border-t-[8px] border-[#0d3d3c]">REF 1</div>
+                        </div>
+                        <div onclick="selectTemplate(13)" class="template-thumb" id="tpl-13" title="Reference 2" role="button" tabindex="0" aria-label="قالب REF 2">
+                            <div class="w-full h-full bg-[#fbfaf6] flex items-center justify-center text-[#d0b284] text-[8px] font-black border-b-[8px] border-[#0d3d3c]">REF 2</div>
+                        </div>
+                        <div onclick="selectTemplate(14)" class="template-thumb" id="tpl-14" title="Reference 3" role="button" tabindex="0" aria-label="قالب REF 3">
+                            <div class="w-full h-full bg-[#f7f3e9] flex items-center justify-center text-[#0d3d3c] text-[8px] font-black border-r-[8px] border-[#d0b284]">REF 3</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Intro settings -->
+                <div class="settings-panel space-y-2">
+                    <label class="field-label" for="intro-mode">النص التمهيدي لصور العرض</label>
+                    <select id="intro-mode" class="form-input text-sm" onchange="handleIntroModeChange()" aria-label="اختر نوع النص التمهيدي">
+                        <option value="default" selected>العبارة الافتراضية لبرنامج الشراكات الدولية</option>
+                        <option value="custom">نص مخصص</option>
+                        <option value="none">بدون نص تمهيدي</option>
+                    </select>
+                    <textarea id="intro-custom"
+                              class="form-input text-sm hidden"
+                              oninput="saveIntroSettings()"
+                              placeholder="اكتب النص التمهيدي الذي سيظهر في صور العرض"
+                              aria-label="النص التمهيدي المخصص"
+                              style="min-height:72px;resize:vertical"></textarea>
+                </div>
+
+                <!-- Action buttons -->
+                <div class="space-y-2">
+                    <!-- Generate Screens -->
+                    <div class="flex gap-2 items-center">
+                        <button onclick="startScreenSave()" class="btn-main btn-screens flex-1" aria-label="توليد صور شاشة العرض">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <rect x="2" y="3" width="20" height="14" rx="2"/>
+                                <path d="M8 21h8M12 17v4"/>
+                            </svg>
+                            توليد صور العرض
+                        </button>
+                        <button id="btn-share-screen" onclick="shareScreenImages()"
+                                title="تنزيل مسودة بريد شاشة مدخل المبنى"
+                                class="btn-icon"
+                                aria-label="مشاركة صور شاشة العرض">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                                <polyline points="16 6 12 2 8 6"/>
+                                <line x1="12" y1="2" x2="12" y2="15"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <!-- Generate Agent Report -->
+                    <div class="flex gap-2 items-center">
+                        <button onclick="startAgentReport()" class="btn-main flex-1" aria-label="توليد تقرير الوكيل">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                                <polyline points="10 9 9 9 8 9"/>
+                            </svg>
+                            توليد تقرير الوكيل
+                        </button>
+                        <button id="btn-share-report" onclick="shareAgentReport()"
+                                title="تنزيل مسودة بريد الوكيل"
+                                class="btn-icon"
+                                aria-label="مشاركة تقرير الوكيل">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                                <polyline points="16 6 12 2 8 6"/>
+                                <line x1="12" y1="2" x2="12" y2="15"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Rows -->
+        <div id="rows-box" class="pb-4"></div>
+
+    </div><!-- /page-generator -->
+
+    <!-- ====================================================
+         PAGE: ARCHIVE
+         ==================================================== -->
+    <div id="page-archive" class="page-container">
+        <div class="bg-white rounded-xl shadow-sm p-6 min-h-[60vh]">
+            <div class="flex justify-between items-center mb-5 pb-3 border-b">
+                <div>
+                    <h2 class="text-xl font-bold">الجداول المنشأة سابقاً</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">استعرض الجداول الأسبوعية المحفوظة أو عدّل عليها</p>
+                </div>
+            </div>
+            <div id="archive-list" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+            <div id="no-archive" class="hidden flex flex-col items-center justify-center py-16 text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#b5ccc8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-3" aria-hidden="true">
+                    <rect x="2" y="3" width="20" height="5" rx="1"/>
+                    <path d="M2 8h20v13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8z"/>
+                    <path d="m9 13 2 2 4-4"/>
+                </svg>
+                <p class="text-slate-400 font-semibold">لا توجد جداول مؤرشفة</p>
+                <p class="text-slate-300 text-xs mt-1">سيظهر هنا كل جدول تقوم بتوليده</p>
+            </div>
+        </div>
+    </div><!-- /page-archive -->
+
+</main>
+
+<!-- ============================================================
+     FOOTER
+     ============================================================ -->
+<footer class="bg-white border-t mt-auto py-4 text-center">
+    <div class="font-bold text-sm text-slate-500">جميع الحقوق محفوظة — Nalshahrani 2026</div>
+</footer>
+
+<!-- ============================================================
+     LOADER OVERLAY
+     ============================================================ -->
+<div id="loader" class="fixed inset-0 bg-white/95 z-[100] hidden flex-col items-center justify-center gap-4"
+     role="status" aria-live="assertive" aria-label="جاري المعالجة">
+    <div class="relative w-14 h-14">
+        <div class="w-14 h-14 border-4 border-slate-100 rounded-full"></div>
+        <div class="absolute inset-0 w-14 h-14 border-4 border-transparent border-t-[#016564] rounded-full animate-spin"></div>
+    </div>
+    <div class="text-center">
+        <span id="loader-text" class="font-bold text-slate-600 block">جاري التوليد...</span>
+        <span class="text-xs text-slate-400 mt-1 block">يرجى الانتظار</span>
+    </div>
+</div>
+
+<script src="./src/app.js"></script>
 </body>
 </html>

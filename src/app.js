@@ -572,8 +572,9 @@
             const btnWrap = document.createElement('div');
             btnWrap.className = 'mt-2';
             btnWrap.innerHTML = `
-                <button id="smart-paste-btn" type="button" onclick="openSmartPasteModal()" class="form-input text-center text-xs hover:bg-slate-50">
-                    📋 لصق ذكي من LMS
+                <button id="smart-paste-btn" type="button" onclick="openSmartPasteModal()" class="form-input flex items-center justify-center gap-1.5 text-sm hover:bg-slate-50">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M17 4h1a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1"/><path d="M9 12h6M9 16h4"/></svg>
+                    لصق ذكي من LMS
                 </button>
             `;
             holder.appendChild(btnWrap);
@@ -790,7 +791,41 @@
         function autoSave() { try { const week = document.getElementById('w-id').value; const owner = getSelectedOwner(); const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); archive[week] = { rows: rows, owner: owner }; localStorage.setItem(ARCH_KEY, JSON.stringify(archive)); } catch(e) {} }
         function loadFromArchive(week) { const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); if(archive[week]) { const data = archive[week]; rows = []; document.getElementById('rows-box').innerHTML = ''; (data.rows || data).forEach(r => addRow(r)); document.getElementById('w-id').value = week; document.getElementById('owner-select').value = data.owner || ""; updateIdx(); invalidateGeneratedFiles(); showPage('generator'); showToast(`تم تحميل الأسبوع ${week}`, 'info'); } }
         function deleteFromArchive(week) { if(confirm(`حذف أرشيف الأسبوع ${week}؟`)) { const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); delete archive[week]; localStorage.setItem(ARCH_KEY, JSON.stringify(archive)); refreshArchiveView(); initWeekNumber(); showToast("تم الحذف", 'info'); } }
-        function refreshArchiveView() { const container = document.getElementById('archive-list'); const noData = document.getElementById('no-archive'); const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); const keys = Object.keys(archive); container.innerHTML = ''; if(keys.length === 0) { noData.classList.remove('hidden'); return; } noData.classList.add('hidden'); keys.sort((a,b) => b - a).forEach(key => { const entry = archive[key]; const owner = entry.owner || 'غير محدد'; const count = (entry.rows || entry).length; const div = document.createElement('div'); div.className = "bg-slate-50 p-4 rounded-lg border hover:shadow-md transition-shadow"; div.innerHTML = `<div class="flex justify-between items-center mb-2"><h4 class="font-bold text-[#2c6060] text-lg">الأسبوع ${key}</h4><span class="text-xs bg-slate-200 px-2 py-1 rounded">${count} دورات</span></div><div class="text-xs text-slate-500 mb-3">بواسطة: <span class="font-bold text-slate-700">${owner}</span></div><div class="flex gap-2 mt-4"><button onclick="loadFromArchive('${key}')" class="flex-1 btn-main text-xs">📝 تعديل</button><button onclick="deleteFromArchive('${key}')" class="btn-outline text-xs text-red-500 border-red-500 hover:bg-red-50">🗑️ حذف</button></div>`; container.appendChild(div); }); }
+        function refreshArchiveView() {
+            const container = document.getElementById('archive-list');
+            const noData = document.getElementById('no-archive');
+            const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}');
+            const keys = Object.keys(archive);
+            container.innerHTML = '';
+            if (keys.length === 0) { noData.classList.remove('hidden'); return; }
+            noData.classList.add('hidden');
+            keys.sort((a, b) => b - a).forEach(key => {
+                const entry = archive[key];
+                const owner = entry.owner || 'غير محدد';
+                const count = (entry.rows || entry).length;
+                const div = document.createElement('div');
+                div.className = "p-4 rounded-xl border";
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="font-black text-base" style="color:var(--brand-deep)">الأسبوع ${key}</h4>
+                        <span class="badge badge-brand">${count} دورة</span>
+                    </div>
+                    <div class="text-xs mb-4" style="color:var(--muted)">
+                        بواسطة: <span class="font-bold" style="color:var(--ink-sub)">${owner}</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="loadFromArchive('${key}')" class="btn-main flex-1 text-xs gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            تعديل
+                        </button>
+                        <button onclick="deleteFromArchive('${key}')" class="btn-outline text-xs" style="color:var(--danger);border-color:rgba(143,47,45,0.3)" onmouseover="this.style.background='var(--danger-soft)'" onmouseout="this.style.background=''">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="m19 6-.867 12.142A2 2 0 0 1 16.138 20H7.862a2 2 0 0 1-1.995-1.858L5 6"/><path d="M10 11v6M14 11v6"/><path d="m8.5 6 .5-3h6l.5 3"/></svg>
+                            حذف
+                        </button>
+                    </div>`;
+                container.appendChild(div);
+            });
+        }
 
         // --- 5. Save Logic ---
         
