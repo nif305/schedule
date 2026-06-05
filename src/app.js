@@ -500,11 +500,15 @@
         function renderRow(o) {
             const el = document.createElement('div');
             el.id = `r-${o.id}`;
-            el.className = "course-row p-3 relative group";
+            const isScheduled = o.st === 'مجدول';
+            el.className = `course-row p-3 relative group${isScheduled ? ' course-row-scheduled' : ''}`;
             const opts = (arr, sel) => arr.map(x => `<option value="${x}" ${x===sel?'selected':''}>${x}</option>`).join('');
+            const scheduledBadge = isScheduled
+                ? `<span class="scheduled-badge" title="هذه الدورة غير مؤكدة وقد لا تُنفَّذ">⚠ غير مؤكدة</span>` : '';
             el.innerHTML = `
+                ${scheduledBadge}
                 <div class="grid grid-cols-12 gap-2 items-center">
-                    <div class="col-span-1 text-center text-slate-300 font-bold text-xs idx">${rows.length}</div>
+                    <div class="col-span-1 text-center font-bold text-xs idx">${rows.length}</div>
                     <div class="col-span-11 md:col-span-4"><input type="text" placeholder="اسم النشاط التدريبي" value="${o.n}" onchange="upd(${o.id},'n',this.value)" class="form-input border-transparent focus:border-[#2c6060]"></div>
                     <div class="col-span-6 md:col-span-2"><input type="text" placeholder="مكان التنفيذ" value="${o.loc}" onchange="upd(${o.id},'loc',this.value)" class="form-input text-xs"></div>
                     <div class="col-span-6 md:col-span-2"><select onchange="upd(${o.id},'st',this.value)" class="form-input text-xs">${opts(DDL.status, o.st)}</select></div>
@@ -789,7 +793,23 @@
 
         // --- 4. Archive ---
         function autoSave() { try { const week = document.getElementById('w-id').value; const owner = getSelectedOwner(); const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); archive[week] = { rows: rows, owner: owner }; localStorage.setItem(ARCH_KEY, JSON.stringify(archive)); } catch(e) {} }
-        function loadFromArchive(week) { const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); if(archive[week]) { const data = archive[week]; rows = []; document.getElementById('rows-box').innerHTML = ''; (data.rows || data).forEach(r => addRow(r)); document.getElementById('w-id').value = week; document.getElementById('owner-select').value = data.owner || ""; updateIdx(); invalidateGeneratedFiles(); showPage('generator'); showToast(`تم تحميل الأسبوع ${week}`, 'info'); } }
+        function loadFromArchive(week) {
+            const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}');
+            if(archive[week]) {
+                const data = archive[week];
+                rows = [];
+                document.getElementById('rows-box').innerHTML = '';
+                (data.rows || data).forEach(r => addRow(r));
+                document.getElementById('w-id').value = week;
+                document.getElementById('owner-select').value = data.owner || "";
+                updateIdx();
+                invalidateGeneratedFiles();
+                showPage('generator');
+                // انتقل لخطوة الدورات مباشرةً ليتمكن من تعديلها أو تأكيدها
+                if(typeof showStep === 'function') showStep(2);
+                showToast(`تم تحميل جدول الأسبوع ${week} — يمكنك تعديله الآن`, 'info');
+            }
+        }
         function deleteFromArchive(week) { if(confirm(`حذف أرشيف الأسبوع ${week}؟`)) { const archive = JSON.parse(localStorage.getItem(ARCH_KEY) || '{}'); delete archive[week]; localStorage.setItem(ARCH_KEY, JSON.stringify(archive)); refreshArchiveView(); initWeekNumber(); showToast("تم الحذف", 'info'); } }
         function refreshArchiveView() {
             const container = document.getElementById('archive-list');
@@ -844,7 +864,9 @@
         async function generateScreenZipBlob(valid, week) {
             const stats = getStats(valid);
             const zip = new JSZip();
-            const chunksS = chunk(valid, 4);
+            // T17 (الشبكة المتميزة) يعرض 6 دورات في الصورة الواحدة بشبكة 2×3
+            const chunkSize = currentTemplate === 17 ? 6 : 4;
+            const chunksS = chunk(valid, chunkSize);
             const r = getScreenRender();
             for(let i=0; i<chunksS.length; i++) {
                 const canvas = document.createElement('canvas');
@@ -2377,74 +2399,84 @@
         // ==========================================================
 
         // ── مساعد: رسم chips بمقاسات نسبية من h ──────────────────
+        // إذا كانت الدورة خارجية يُحذف الطابق ويُوزَّع الفراغ على باقي الصناديق
         function nChips(ctx, c, x, y, w, h) {
-            // RTL order: الطابق(right) → القاعة → الحالة → الفترة → مكان التنفيذ(left)
+            const hideFloor = shouldHideFloorValue(c.f);
             const items = [
-                ['مكان التنفيذ', c.loc,    0],
-                ['الفترة',        c.p,     1],
-                ['الحالة',        c.st,    2],
-                ['القاعة',        c.r,     3],
-                ['الطابق',        shouldHideFloorValue(c.f)?'—':c.f, 4],
+                ['مكان التنفيذ', c.loc, 0],
+                ['الفترة',        c.p,  1],
+                ['الحالة',        c.st, 2],
+                ['القاعة',        c.r,  3],
             ];
-            // سقف ثابت لارتفاع الـ chip ثم توسيطه عمودياً في المنطقة المتاحة
-            // (يمنع تضخّم الصناديق في البطاقات الطويلة ويعطي تنفّساً متوازناً)
+            if (!hideFloor) items.push(['الطابق', c.f, 4]);
+
+            const n = items.length; // 4 أو 5
             const CHIP_MAX = 300;
             const ch = Math.min(h, CHIP_MAX);
             const cy = y + (h - ch) / 2;
-            const gap = w * 0.016, bW = (w - gap*4) / 5;
-            const icS = Math.min(ch*0.19, bW*0.17, 64);
-            const vFs = Math.min(ch*0.30, bW*0.27, 96);
-            const lFs = Math.min(ch*0.15, 46);
+            const gap = w * 0.016;
+            const bW = (w - gap*(n-1)) / n;
+            const icS = Math.min(ch*0.19, bW*0.18, 66);
+            const vFs = Math.min(ch*0.28, bW*0.22, 96);
+            const lFs = Math.min(ch*0.14, 44);
+            // المسافات الداخلية للتفادي من التداخل بين الأيقونة والنص
+            const iconRatioY = 0.28, valueRatioY = 0.63, labelRatioY = 0.85;
             items.forEach((it, i) => {
                 const bx = x + i*(bW+gap);
                 ctx.fillStyle = TC.soft; drawRoundedRect(ctx,bx,cy,bW,ch,Math.min(22,ch*0.10));
                 ctx.strokeStyle = TC.line; ctx.lineWidth = 2.5; ctx.strokeRect(bx,cy,bW,ch);
-                ctx.fillStyle = TC.gold; ctx.fillRect(bx,cy,bW,Math.max(4,ch*0.020));
-                tChipIcon(ctx, it[2], bx+bW/2, cy+ch*0.27, icS);
+                ctx.fillStyle = TC.gold; ctx.fillRect(bx,cy,bW,Math.max(4,ch*0.022));
+                tChipIcon(ctx, it[2], bx+bW/2, cy+ch*iconRatioY, icS);
                 ctx.fillStyle = TC.ink; ctx.textAlign = 'center';
                 const v = String(it[1]||'—'); let vf = vFs;
                 ctx.font = `600 ${vf}px Cairo`;
-                while(ctx.measureText(v).width > bW-bW*0.16 && vf > 32){ vf -= 3; ctx.font = `600 ${vf}px Cairo`; }
+                while(ctx.measureText(v).width > bW*0.85 && vf > 32){ vf -= 3; ctx.font = `600 ${vf}px Cairo`; }
                 let vt = v;
-                while(ctx.measureText(vt).width > bW-bW*0.16 && vt.length > 0) vt = vt.slice(0,-1);
+                while(ctx.measureText(vt).width > bW*0.85 && vt.length > 0) vt = vt.slice(0,-1);
                 if(vt !== v) vt += '…';
-                ctx.fillText(vt, bx+bW/2, cy+ch*0.60);
+                ctx.fillText(vt, bx+bW/2, cy+ch*valueRatioY);
                 ctx.fillStyle = TC.muted; ctx.font = `400 ${lFs}px Cairo`;
-                ctx.fillText(it[0], bx+bW/2, cy+ch*0.82);
+                ctx.fillText(it[0], bx+bW/2, cy+ch*labelRatioY);
             });
         }
 
-        // ── مساعد: رسم chips صفّين (3+2) بمقاسات نسبية من h ─────
+        // ── مساعد: رسم chips صفّين بمقاسات نسبية ────────────────
+        // الخارجية → الصف الأول (القاعة+الحالة) فقط بلا طابق
         function nChips32(ctx, c, x, y, w, h) {
-            const row1 = [['الطابق',shouldHideFloorValue(c.f)?'—':c.f,4],['القاعة',c.r,3],['الحالة',c.st,2]];
+            const hideFloor = shouldHideFloorValue(c.f);
+            const row1 = hideFloor
+                ? [['القاعة',c.r,3],['الحالة',c.st,2]]
+                : [['الطابق',c.f,4],['القاعة',c.r,3],['الحالة',c.st,2]];
             const row2 = [['الفترة',c.p,1],['مكان التنفيذ',c.loc,0]];
-            // صفّان يملآن المنطقة (مع سقف معتدل) ثم توسيط الكتلة عمودياً
             const ROW_MAX = 560;
-            const cGap = Math.min(h * 0.06, 80);
+            const cGap = Math.min(h * 0.065, 88);
             const rH = Math.min((h - cGap) / 2, ROW_MAX);
             const blockH = rH*2 + cGap;
             const y0 = y + (h - blockH) / 2;
             const gap = w * 0.016;
-            const bW1 = (w - gap*2) / 3, bW2 = (w - gap) / 2;
-            const icS = Math.min(rH*0.155, 86);
-            const vFs = Math.min(rH*0.225, 116);
-            const lFs = Math.min(rH*0.115, 54);
+            const bW1 = (w - gap*(row1.length-1)) / row1.length;
+            const bW2 = (w - gap) / 2;
+            const icS = Math.min(rH*0.148, 80);
+            const vFs = Math.min(rH*0.210, 108);
+            const lFs = Math.min(rH*0.108, 50);
+            // مسافات تضمن عدم التداخل بين الأيقونة والقيمة والتسمية
+            const iRY = 0.26, vRY = 0.61, lRY = 0.83;
             const drawRow = (arr, bWW, ry) => arr.forEach((it, i) => {
                 const bx = x + i*(bWW+gap);
                 ctx.fillStyle = TC.soft; drawRoundedRect(ctx,bx,ry,bWW,rH,Math.min(22,rH*0.12));
                 ctx.strokeStyle = TC.line; ctx.lineWidth = 2.5; ctx.strokeRect(bx,ry,bWW,rH);
-                ctx.fillStyle = TC.gold; ctx.fillRect(bx,ry,bWW,Math.max(4,rH*0.030));
-                tChipIcon(ctx, it[2], bx+bWW/2, ry+rH*0.27, icS);
+                ctx.fillStyle = TC.gold; ctx.fillRect(bx,ry,bWW,Math.max(4,rH*0.028));
+                tChipIcon(ctx, it[2], bx+bWW/2, ry+rH*iRY, icS);
                 ctx.fillStyle = TC.ink; ctx.textAlign = 'center';
                 const v = String(it[1]||'—'); let vf = vFs;
                 ctx.font = `600 ${vf}px Cairo`;
-                while(ctx.measureText(v).width > bWW-bWW*0.14 && vf > 30){ vf -= 3; ctx.font = `600 ${vf}px Cairo`; }
+                while(ctx.measureText(v).width > bWW*0.86 && vf > 28){ vf -= 3; ctx.font = `600 ${vf}px Cairo`; }
                 let vt = v;
-                while(ctx.measureText(vt).width > bWW-bWW*0.14 && vt.length > 0) vt = vt.slice(0,-1);
+                while(ctx.measureText(vt).width > bWW*0.86 && vt.length > 0) vt = vt.slice(0,-1);
                 if(vt !== v) vt += '…';
-                ctx.fillText(vt, bx+bWW/2, ry+rH*0.605);
+                ctx.fillText(vt, bx+bWW/2, ry+rH*vRY);
                 ctx.fillStyle = TC.muted; ctx.font = `400 ${lFs}px Cairo`;
-                ctx.fillText(it[0], bx+bWW/2, ry+rH*0.83);
+                ctx.fillText(it[0], bx+bWW/2, ry+rH*lRY);
             });
             drawRow(row1, bW1, y0);
             drawRow(row2, bW2, y0+rH+cGap);
@@ -2495,11 +2527,11 @@
             let y = tHdr(ctx, logo, pn, tp) + 55;
             y = tSts(ctx, stats, y) + 65;
             y = tIntr(ctx, y) + 30;
-            const cols=2, gap=70, mX=T_MX;
+            const cols=2, rows=3, gap=55, mX=T_MX;
             const cW = (T_W - mX*2 - gap) / cols;
-            const rows = 2;
-            const cH = Math.max(800, Math.floor((T_H - y - 240 - gap) / rows));
-            for(let i=0; i<Math.min(list.length,4); i++) {
+            // 6 دورات في شبكة 2×3 — البطاقات أصغر وأكثر توازناً
+            const cH = Math.max(700, Math.floor((T_H - y - 240 - gap*(rows-1)) / rows));
+            for(let i=0; i<Math.min(list.length, 6); i++) {
                 if(!list[i]) continue;
                 const col=i%cols, row=Math.floor(i/cols);
                 t17(ctx, list[i], mX+col*(cW+gap), y+row*(cH+gap), cW, cH, si+i+1);
@@ -2617,26 +2649,24 @@
             const bW  = w - PNL - PAD;
             const bX  = x + PAD/2;
             const cX  = bX + bW/2;
-            const ttlFs = Math.min(Math.round(h * 0.092), 150);
-            const dtFs  = Math.min(Math.round(h * 0.046), 76);
-            const chH   = Math.round(h * 0.300);  // منطقة الـ chips (تُحدّ وتُوسّط داخلياً)
-            const dtGap = Math.round(h * 0.034);
-            const chGap = Math.round(h * 0.040);
+            const ttlFs = Math.min(Math.round(h * 0.088), 144);
+            const dtFs  = Math.min(Math.round(h * 0.044), 72);
+            const chH   = Math.round(h * 0.420);  // صفّان من الـ chips — يحتاج ارتفاع أكبر
+            const dtGap = Math.round(h * 0.032);
+            const chGap = Math.round(h * 0.038);
 
             const tRes = wrapTextSmart(ctx, c.n, bW-PAD*2, 2, ttlFs);
             const ttlH = tRes.lines.length * tRes.lineHeight;
             const total = ttlH + dtGap + dtFs*1.6 + chGap + chH;
             let cy = y + (h - total) / 2;
 
-            // عنوان
             ctx.fillStyle=TC.ink; ctx.textAlign='center'; ctx.font=`bold ${tRes.fontSize}px Cairo`;
             tRes.lines.forEach((l,i)=>{ ctx.fillText(l, cX, cy+tRes.fontSize+i*tRes.lineHeight); });
             cy += ttlH + dtGap;
-            // تاريخ (مقيّد بالعرض)
             nDate(ctx, c, cX, cy+dtFs*0.7, bW-PAD*2, dtFs);
             cy += Math.round(dtFs*1.6) + chGap;
-            // chips (صف واحد 5 عناصر)
-            nChips(ctx, c, bX+PAD/2, cy, bW-PAD, chH);
+            // صفّان من الـ chips (3+2) بدلاً من صف واحد
+            nChips32(ctx, c, bX+PAD/2, cy, bW-PAD, chH);
         }
 
         // ── Template 19: الخط الزمني — يمين RTL ──────────────────
@@ -2647,7 +2677,7 @@
             y = tIntr(ctx, y) + 30;
             const n=list.length||1, gap=62;
             const tlX=T_W-T_MX-200;
-            const cW=tlX-T_MX-90;
+            const cW=tlX-T_MX-180; // مسافة أكبر بين الخط الزمني والبطاقات لتفادي التلاصق
             const cH=tCardH(y, n, gap);
             // خط الجدول
             ctx.save(); ctx.strokeStyle=TC.gold; ctx.lineWidth=9; ctx.setLineDash([52,34]);
@@ -2699,21 +2729,20 @@
             const innerH = h - DSH - CSH;
             const PAD = Math.round(innerH * 0.04);
 
-            const ttlFs = Math.min(Math.round(innerH * 0.125), 150);
-            const chH   = Math.round(innerH * 0.400);
-            const chGap = Math.round(innerH * 0.050);
+            const ttlFs = Math.min(Math.round(innerH * 0.118), 142);
+            const chH   = Math.round(innerH * 0.520); // صفّان → يحتاج ارتفاع أكبر
+            const chGap = Math.round(innerH * 0.048);
 
             const tRes = wrapTextSmart(ctx, c.n, w-PAD*4, 2, ttlFs);
             const ttlH = tRes.lines.length * tRes.lineHeight;
             const total = ttlH + chGap + chH;
             let cy = innerY + (innerH - total) / 2;
 
-            // عنوان
             ctx.fillStyle=TC.ink; ctx.textAlign='center'; ctx.font=`bold ${tRes.fontSize}px Cairo`;
             tRes.lines.forEach((l,i)=>ctx.fillText(l, x+w/2, cy+tRes.fontSize+i*tRes.lineHeight));
             cy += ttlH + chGap;
-            // chips
-            nChips(ctx, c, x+PAD*2, cy, w-PAD*4, chH);
+            // صفّان من الـ chips بدلاً من صف واحد
+            nChips32(ctx, c, x+PAD*2, cy, w-PAD*4, chH);
         }
 
         // ── Template 20: التنفيذي الفاخر ─────────────────────────
@@ -2772,11 +2801,11 @@
             // ── المحتوى (iOS method: احسب أولاً ثم مركز) ─────────
             const bW = w - PNL - PAD*1.5;
             const cX = x + bW/2;
-            const ttlFs = Math.min(Math.round(h * 0.090), 150);
-            const dtFs  = Math.min(Math.round(h * 0.044), 74);
-            const chH   = Math.round(h * 0.310);
-            const dtGap = Math.round(h * 0.032);
-            const chGap = Math.round(h * 0.040);
+            const ttlFs = Math.min(Math.round(h * 0.088), 144);
+            const dtFs  = Math.min(Math.round(h * 0.042), 70);
+            const chH   = Math.round(h * 0.420); // صفّان
+            const dtGap = Math.round(h * 0.030);
+            const chGap = Math.round(h * 0.038);
 
             const tRes = wrapTextSmart(ctx, c.n, bW-PAD*3, 2, ttlFs);
             const ttlH = tRes.lines.length * tRes.lineHeight;
@@ -2788,7 +2817,7 @@
             cy += ttlH + dtGap;
             nDate(ctx, c, cX, cy+dtFs*0.7, bW-PAD*2, dtFs);
             cy += Math.round(dtFs*1.6) + chGap;
-            nChips(ctx, c, x+PAD/2, cy, bW-PAD, chH);
+            nChips32(ctx, c, x+PAD/2, cy, bW-PAD, chH);
         }
 
         // ── Template 21: العمليات الذكية — لوحة يسار ─────────────
@@ -2839,11 +2868,11 @@
             const cntX = coX + PNL + PAD;
             const cntW = w - PNL - PAD*4 - 10;
             const cX   = cntX + cntW/2;
-            const ttlFs = Math.min(Math.round(h * 0.090), 150);
-            const dtFs  = Math.min(Math.round(h * 0.044), 74);
-            const chH   = Math.round(h * 0.310);
-            const dtGap = Math.round(h * 0.032);
-            const chGap = Math.round(h * 0.040);
+            const ttlFs = Math.min(Math.round(h * 0.088), 144);
+            const dtFs  = Math.min(Math.round(h * 0.042), 70);
+            const chH   = Math.round(h * 0.420); // صفّان
+            const dtGap = Math.round(h * 0.030);
+            const chGap = Math.round(h * 0.038);
 
             const tRes = wrapTextSmart(ctx, c.n, cntW-PAD*2, 2, ttlFs);
             const ttlH = tRes.lines.length * tRes.lineHeight;
@@ -2855,7 +2884,7 @@
             cy += ttlH + dtGap;
             nDate(ctx, c, cX, cy+dtFs*0.7, cntW-PAD*2, dtFs);
             cy += Math.round(dtFs*1.6) + chGap;
-            nChips(ctx, c, cntX, cy, cntW, chH);
+            nChips32(ctx, c, cntX, cy, cntW, chH);
         }
 
         // ==========================================================

@@ -229,6 +229,56 @@
   }
   .btn-prev:hover { border-color: var(--line-strong); color: var(--ink-sub); background: var(--surface-soft); }
 
+  /* ── Scheduled course highlight ─────────────────────────────── */
+  .course-row-scheduled {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
+    border-color: rgba(245,158,11,0.35) !important;
+  }
+  .course-row-scheduled:hover { border-color: rgba(245,158,11,0.55) !important; }
+  .scheduled-badge {
+    position: absolute; top: 5px; left: 46px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff; font-size: 0.62rem; font-weight: 800;
+    padding: 2px 10px; border-radius: 999px; letter-spacing: .02em;
+    box-shadow: 0 1px 4px rgba(217,119,6,0.3);
+  }
+
+  /* ── Delete schedule button ──────────────────────────────────── */
+  .btn-delete-schedule {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    min-height: 36px; padding: 0.35rem 0.75rem;
+    border: 1.5px solid rgba(143,47,45,0.22);
+    border-radius: 8px; background: #fff; color: var(--danger);
+    font-family: 'Cairo', sans-serif;
+    font-size: 0.78rem; font-weight: 800;
+    cursor: pointer; transition: all .15s;
+  }
+  .btn-delete-schedule:hover {
+    background: var(--danger-soft);
+    border-color: rgba(143,47,45,0.42);
+    transform: scale(1.02);
+  }
+  .btn-delete-schedule svg { width: 14px; height: 14px; }
+
+  /* ── LMS Paste button — golden & prominent ───────────────────── */
+  .import-btn-lms {
+    background: linear-gradient(145deg, #f9f0dc, #f0e2bb) !important;
+    border-color: rgba(199,176,140,0.65) !important;
+    color: #7a5a20 !important;
+    font-size: 0.9rem !important;
+    font-weight: 800 !important;
+    min-height: 48px !important;
+    padding: 0.6rem 1.375rem !important;
+    box-shadow: 0 2px 8px rgba(199,176,140,0.25) !important;
+  }
+  .import-btn-lms:hover {
+    background: linear-gradient(145deg, #f5e8cc, #ead9a8) !important;
+    border-color: rgba(199,176,140,0.85) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 14px rgba(199,176,140,0.38) !important;
+  }
+  .import-btn-lms svg { color: #9a7830; width: 17px !important; height: 17px !important; }
+
   /* ── Courses Section ────────────────────────────────────────── */
   .courses-header {
     display: flex;
@@ -579,8 +629,8 @@
               استيراد Excel
               <input type="file" id="x-f" class="hidden" accept=".xlsx,.xls" onchange="rdExcel(event)">
             </label>
-            <button id="smart-paste-btn" class="import-btn" onclick="openSmartPasteModal()" aria-label="لصق بيانات من LMS">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M17 4h1a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1"/><path d="M9 12h6M9 16h4"/></svg>
+            <button id="smart-paste-btn" class="import-btn import-btn-lms" onclick="openSmartPasteModal()" aria-label="لصق بيانات من LMS">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M17 4h1a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1"/><path d="M9 12h6M9 16h4"/></svg>
               لصق من LMS
             </button>
             <button class="import-btn" onclick="dlTpl()" aria-label="تحميل قالب Excel فارغ">
@@ -604,7 +654,7 @@
     <div class="phase-section" id="phase-2">
       <div class="phase-card">
         <div class="courses-header">
-          <div class="flex items-center gap-2.5">
+          <div class="flex items-center gap-2.5 flex-1">
             <div class="phase-icon">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             </div>
@@ -613,10 +663,16 @@
               <div id="course-counter-display" class="phase-subtitle">أضف الدورات المجدولة لهذا الأسبوع</div>
             </div>
           </div>
+          <div class="flex items-center gap-2">
+            <button onclick="confirmClearData()" class="btn-delete-schedule" aria-label="حذف جميع الدورات والبدء من جديد">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="m19 6-.867 12.142A2 2 0 0 1 16.138 20H7.862a2 2 0 0 1-1.995-1.858L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+              حذف الجدول
+            </button>
           <button onclick="addRow()" class="btn-main" aria-label="إضافة دورة تدريبية جديدة">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
             إضافة دورة
           </button>
+          </div>
         </div>
 
         <!-- Empty state (shown when no rows) -->
@@ -886,23 +942,6 @@
       </div>
     </div>
 
-    <!-- Danger Zone -->
-    <details class="danger-zone mt-3">
-      <summary>
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m10.29 3.86-8.6 14.9A1 1 0 0 0 2.54 20h17.92a1 1 0 0 0 .85-1.54l-8.6-14.9a1 1 0 0 0-1.72 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        إجراءات متقدمة
-      </summary>
-      <div class="danger-zone-body">
-        <div>
-          <div class="font-bold text-sm text-slate-600 mb-0.5">حذف جميع بيانات الجدول الحالي</div>
-          <div class="danger-zone-note">سيُحذف جميع الدورات المُدخلة في الجدول الحالي. لا يمكن التراجع.</div>
-        </div>
-        <button onclick="confirmClearData()" class="btn-danger" aria-label="حذف جميع البيانات">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="m19 6-.867 12.142A2 2 0 0 1 16.138 20H7.862a2 2 0 0 1-1.995-1.858L5 6"/><path d="M10 11v6M14 11v6"/><path d="m8.5 6 .5-3h6l .5 3"/></svg>
-          حذف الجدول
-        </button>
-      </div>
-    </details>
 
   </div><!-- /page-generator -->
 
