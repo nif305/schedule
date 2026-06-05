@@ -2795,41 +2795,62 @@
             ctx.fillStyle=TC.gold; ctx.fillRect(x,y,w,8);
             ctx.strokeStyle=TC.line; ctx.lineWidth=3; ctx.strokeRect(x,y,w,h);
 
-            // رقم كبير بشفافية راقية في المنطقة العليا
-            ctx.save(); ctx.globalAlpha=0.055; ctx.fillStyle=TC.gold;
-            ctx.textAlign='left'; ctx.font=`bold ${Math.round(h*0.42)}px Cairo`;
-            ctx.fillText(String(idx), x+PAD*1.5, y+h*0.40); ctx.restore();
+            // Watermark رقم ضخم بشفافية خلف المحتوى
+            ctx.save(); ctx.globalAlpha=0.048; ctx.fillStyle=TC.gold;
+            ctx.textAlign='left'; ctx.font=`bold ${Math.round(h*0.38)}px Cairo`;
+            ctx.fillText(String(idx), x+PAD*1.5, y+h*0.42); ctx.restore();
 
-            // ── لوحة المنسق يمين — تباعد متساوٍ بين المكونات ───────
+            // ── لوحة المنسق يمين ──────────────────────────────────
             ctx.save();
             ctx.beginPath(); ctx.moveTo(x+w-PNL,y); ctx.lineTo(x+w-28,y); ctx.arcTo(x+w,y,x+w,y+28,28);
             ctx.lineTo(x+w,y+h-28); ctx.arcTo(x+w,y+h,x+w-28,y+h,28); ctx.lineTo(x+w-PNL,y+h); ctx.closePath(); ctx.clip();
             const gCo=ctx.createLinearGradient(x+w-PNL,y,x+w,y+h); gCo.addColorStop(0,TC.green); gCo.addColorStop(1,TC.greenD);
             ctx.fillStyle=gCo; ctx.fillRect(x+w-PNL,y,PNL,h); ctx.restore();
             ctx.fillStyle=TC.gold; ctx.fillRect(x+w-PNL-6,y+22,6,h-44);
+
             const pCX=x+w-PNL/2;
-            // رقم الدورة في أعلى اللوحة
-            const pNumFs=Math.round(PNL*0.52);
+            const pPad=Math.round(PNL*0.07);
+
+            // ── رقم الدورة — أكبر مع شفافية راقية، baseline محسوب لتفادي القطع
+            const pNumFs=Math.min(Math.round(h*0.195), Math.round(PNL*0.62));
+            const pNumBL=y+pPad+Math.round(pNumFs*0.82); // baseline = padding + cap-height
+            ctx.save(); ctx.globalAlpha=0.88;
             ctx.fillStyle=TC.gold; ctx.textAlign='center'; ctx.font=`bold ${pNumFs}px Cairo`;
-            ctx.fillText(String(idx), pCX, y+h*0.18);
-            // خط فاصل — تباعد متساوٍ
-            ctx.strokeStyle='rgba(199,176,140,0.48)'; ctx.lineWidth=4;
-            ctx.beginPath(); ctx.moveTo(x+w-PNL+55,y+h*0.24); ctx.lineTo(x+w-55,y+h*0.24); ctx.stroke();
-            // أيقونة شخص — في منتصف اللوحة
-            ctx.save(); ctx.strokeStyle='rgba(199,176,140,0.82)'; ctx.lineWidth=Math.max(7,h*0.006); ctx.lineCap='round';
-            ctx.beginPath(); ctx.arc(pCX,y+h*0.38,h*0.044,0,Math.PI*2); ctx.stroke();
-            ctx.beginPath(); ctx.arc(pCX,y+h*0.46,h*0.082,Math.PI,Math.PI*2,true); ctx.stroke(); ctx.restore();
-            // تسمية "منسق التدريب"
-            const coLblFs20=Math.round(h*0.042);
-            ctx.fillStyle='rgba(249,249,249,0.58)'; ctx.font=`normal ${coLblFs20}px Cairo`;
-            ctx.fillText('منسق التدريب', pCX, y+h*0.58);
-            // خط فاصل ثانٍ
+            ctx.fillText(String(idx), pCX, pNumBL); ctx.restore();
+
+            // ── خط فاصل 1 — تحت الرقم مباشرة ──────────────────────
+            const sep1Y=pNumBL+Math.round(pNumFs*0.22)+32;
+            ctx.strokeStyle='rgba(199,176,140,0.50)'; ctx.lineWidth=4;
+            ctx.beginPath(); ctx.moveTo(x+w-PNL+pPad,sep1Y); ctx.lineTo(x+w-pPad,sep1Y); ctx.stroke();
+
+            // ── أيقونة المنسق — مركزها في منتصف الباقي
+            const iconS=Math.min(Math.round(h*0.048),64);
+            const iconCY=sep1Y+Math.round((y+h*0.65-sep1Y)*0.40)+iconS*0.50;
+            ctx.save(); ctx.strokeStyle='rgba(199,176,140,0.82)'; ctx.lineWidth=Math.max(6,iconS*0.12); ctx.lineCap='round';
+            ctx.beginPath(); ctx.arc(pCX,iconCY-iconS*0.55,iconS*0.44,0,Math.PI*2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(pCX,iconCY+iconS*0.20,iconS*0.80,Math.PI,Math.PI*2,true); ctx.stroke(); ctx.restore();
+
+            // ── تسمية المنسق ──────────────────────────────────────
+            const coLblY=iconCY+iconS*0.75+40;
+            const coLblFs=Math.round(h*0.038);
+            ctx.fillStyle='rgba(249,249,249,0.60)'; ctx.textAlign='center'; ctx.font=`normal ${coLblFs}px Cairo`;
+            ctx.fillText('منسق التدريب',pCX,coLblY);
+
+            // ── خط فاصل 2 ───────────────────────────────────────
+            const sep2Y=coLblY+coLblFs*0.40+28;
             ctx.strokeStyle='rgba(199,176,140,0.44)'; ctx.lineWidth=2.5;
-            ctx.beginPath(); ctx.moveTo(x+w-PNL+55,y+h*0.62); ctx.lineTo(x+w-55,y+h*0.62); ctx.stroke();
-            // اسم المنسق
-            const cnFs20=Math.round(h*0.075);
-            ctx.fillStyle='#FFFFFF'; ctx.font=`bold ${cnFs20}px Cairo`;
-            wrapTextSimple(ctx,c.sp||'—',PNL-44).slice(0,2).forEach((l,li)=>ctx.fillText(l,pCX,y+h*0.74+li*cnFs20*1.35));
+            ctx.beginPath(); ctx.moveTo(x+w-PNL+pPad,sep2Y); ctx.lineTo(x+w-pPad,sep2Y); ctx.stroke();
+
+            // ── اسم المنسق — يتقلص تلقائياً ليناسب عرض اللوحة ───
+            const cnAvailW=PNL-pPad*2.2;
+            const cnFsMax=Math.round(h*0.074);
+            ctx.font=`bold ${cnFsMax}px Cairo`;
+            const cnLines=wrapTextSimple(ctx,c.sp||'—',cnAvailW).slice(0,2);
+            const wideL=Math.max(...cnLines.map(l=>ctx.measureText(l).width));
+            const cnFs=wideL>cnAvailW ? Math.floor(cnFsMax*cnAvailW/wideL*0.94) : cnFsMax;
+            ctx.fillStyle='#FFFFFF'; ctx.font=`bold ${cnFs}px Cairo`;
+            const cnY=sep2Y+cnFs*0.95+16;
+            cnLines.forEach((l,li)=>ctx.fillText(l,pCX,cnY+li*cnFs*1.32));
 
             // ── المحتوى (iOS method: احسب أولاً ثم مركز) ─────────
             const bW = w - PNL - PAD*1.5;
@@ -2882,22 +2903,38 @@
             ctx.textAlign='right'; ctx.font=`bold ${Math.round(h*0.35)}px Cairo`;
             ctx.fillText(String(idx).padStart(2,'0'), x+w-PAD*2, y+h*0.38); ctx.restore();
 
-            // ── لوحة المنسق يسار ──────────────────────────────────
+            // ── لوحة المنسق يسار — layout متوازن بدون تجاوز ───────
             const coX=x+PAD, coY=y+PAD, coH=h-PAD*2;
+            const coPad=Math.round(PNL*0.07);
             tSh(ctx,18,6,'rgba(26,68,69,0.11)');
             ctx.fillStyle=TC.green; drawRoundedRect(ctx,coX,coY,PNL,coH,22); tCl(ctx);
             ctx.fillStyle=TC.gold; ctx.fillRect(coX+PNL-8,coY+14,8,coH-28);
             const piX=coX+PNL/2;
-            ctx.save(); ctx.strokeStyle='rgba(199,176,140,0.80)'; ctx.lineWidth=Math.round(h*0.006); ctx.lineCap='round';
-            ctx.beginPath(); ctx.arc(piX,coY+coH*0.30,coH*0.080,0,Math.PI*2); ctx.stroke();
-            ctx.beginPath(); ctx.arc(piX,coY+coH*0.30+coH*0.12,coH*0.12,Math.PI,Math.PI*2,true); ctx.stroke(); ctx.restore();
-            ctx.fillStyle='rgba(249,249,249,0.55)'; ctx.textAlign='center'; ctx.font=`normal ${Math.round(h*0.044)}px Cairo`;
-            ctx.fillText('اسم منسق التدريب', piX, coY+coH*0.57);
-            ctx.strokeStyle='rgba(199,176,140,0.50)'; ctx.lineWidth=3;
-            ctx.beginPath(); ctx.moveTo(coX+35,coY+coH*0.62); ctx.lineTo(coX+PNL-35,coY+coH*0.62); ctx.stroke();
-            const cnFs21=Math.round(h*0.076);
+            // أيقونة الشخص في القسم العلوي من اللوحة
+            const iconS21=Math.min(Math.round(coH*0.11),80);
+            const iconCY21=coY+coPad+iconS21*1.10;
+            ctx.save(); ctx.strokeStyle='rgba(199,176,140,0.82)'; ctx.lineWidth=Math.max(6,iconS21*0.12); ctx.lineCap='round';
+            ctx.beginPath(); ctx.arc(piX,iconCY21-iconS21*0.55,iconS21*0.44,0,Math.PI*2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(piX,iconCY21+iconS21*0.20,iconS21*0.80,Math.PI,Math.PI*2,true); ctx.stroke(); ctx.restore();
+            // تسمية المنسق تحت الأيقونة
+            const coLblY21=iconCY21+iconS21*0.80+50;
+            const coLblFs21=Math.round(coH*0.060);
+            ctx.fillStyle='rgba(249,249,249,0.58)'; ctx.textAlign='center'; ctx.font=`normal ${coLblFs21}px Cairo`;
+            ctx.fillText('منسق التدريب',piX,coLblY21);
+            // خط فاصل
+            const sep21Y=coLblY21+coLblFs21*0.40+28;
+            ctx.strokeStyle='rgba(199,176,140,0.48)'; ctx.lineWidth=2.5;
+            ctx.beginPath(); ctx.moveTo(coX+coPad,sep21Y); ctx.lineTo(coX+PNL-coPad,sep21Y); ctx.stroke();
+            // اسم المنسق — يتقلص تلقائياً
+            const cnAvailW21=PNL-coPad*2.2;
+            const cnFsMax21=Math.round(coH*0.095);
+            ctx.font=`bold ${cnFsMax21}px Cairo`;
+            const cnLines21=wrapTextSimple(ctx,c.sp||'—',cnAvailW21).slice(0,2);
+            const wideL21=Math.max(...cnLines21.map(l=>ctx.measureText(l).width));
+            const cnFs21=wideL21>cnAvailW21 ? Math.floor(cnFsMax21*cnAvailW21/wideL21*0.94) : cnFsMax21;
             ctx.fillStyle='#FFFFFF'; ctx.font=`bold ${cnFs21}px Cairo`;
-            wrapTextSimple(ctx,c.sp||'—',PNL-44).slice(0,2).forEach((l,li)=>ctx.fillText(l,piX,coY+coH*0.73+li*cnFs21*1.35));
+            const cnY21=sep21Y+cnFs21*0.95+16;
+            cnLines21.forEach((l,li)=>ctx.fillText(l,piX,cnY21+li*cnFs21*1.32));
 
             // ── المحتوى (iOS method) ──────────────────────────────
             const cntX = coX + PNL + PAD;
@@ -2917,7 +2954,9 @@
             ctx.fillStyle=TC.ink; ctx.textAlign='center'; ctx.font=`bold ${tRes.fontSize}px Cairo`;
             tRes.lines.forEach((l,i)=>ctx.fillText(l, cX, cy+tRes.fontSize+i*tRes.lineHeight));
             cy += ttlH + dtGap;
-            nDate(ctx, c, cX, cy+dtFs*0.7, cntW-PAD*2, dtFs);
+            // تاريخ عنابي بدون إطار
+            ctx.fillStyle='#802f2d'; ctx.font=`bold ${dtFs}px Cairo`;
+            ctx.fillText(`${c.s||'—'}  ←  ${c.e||'—'}`, cX, cy+dtFs);
             cy += Math.round(dtFs*1.6) + chGap;
             nChips32(ctx, c, cntX, cy, cntW, chH);
         }
