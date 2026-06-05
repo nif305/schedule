@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="منصة توليد جدول الدورات التدريبية الأسبوعي - جامعة نايف العربية للعلوم الأمنية" />
-  <title>منصة جدول الدورات التدريبية — جامعة نايف</title>
+  <meta name="description" content="منصة توليد جدول الدورات التدريبية الأسبوعي — جامعة نايف العربية للعلوم الأمنية" />
+  <title>جدول الدورات التدريبية — جامعة نايف</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,360 +13,1197 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <link rel="stylesheet" href="./src/styles.css" />
+
+  <style>
+  /* ── New Stepper & Phase System ─────────────────────────────── */
+  .step-bar {
+    display: flex;
+    align-items: center;
+    background: #fff;
+    border: 1px solid rgba(1,101,100,0.12);
+    border-radius: 14px;
+    padding: 0.875rem 1.25rem;
+    box-shadow: 0 1px 3px rgba(13,56,54,0.07), 0 4px 12px rgba(13,56,54,0.05);
+    margin-bottom: 1.25rem;
+    gap: 0;
+  }
+  .step-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0 0.5rem;
+    flex: 1;
+    min-width: 0;
+    transition: opacity .15s;
+  }
+  .step-item:hover { opacity: .75; }
+  .step-num {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.875rem; font-weight: 900;
+    border: 2px solid #d2e8e5;
+    background: #f4faf8;
+    color: #7a9898;
+    transition: all .2s;
+    flex-shrink: 0;
+  }
+  .step-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #9bb4b2;
+    white-space: nowrap;
+    transition: color .2s;
+  }
+  .step-connector {
+    flex: 1;
+    height: 2px;
+    background: #dae5e2;
+    min-width: 12px;
+    margin: 0 4px;
+    margin-bottom: 18px;
+    border-radius: 999px;
+    transition: background .25s;
+  }
+  .step-item.completed .step-num {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+  }
+  .step-item.completed .step-label { color: var(--brand-deep); }
+  .step-connector.completed { background: var(--brand); }
+  .step-item.active .step-num {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+    box-shadow: 0 0 0 4px rgba(1,101,100,0.14);
+  }
+  .step-item.active .step-label {
+    color: var(--brand-deep);
+    font-weight: 900;
+  }
+
+  /* ── Phase Sections ─────────────────────────────────────────── */
+  .phase-section { display: none; animation: phaseIn .22s ease; }
+  .phase-section.active { display: block; }
+  @keyframes phaseIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .phase-card {
+    background: #fff;
+    border: 1px solid rgba(1,101,100,0.12);
+    border-radius: 14px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(13,56,54,0.07), 0 4px 16px rgba(13,56,54,0.05);
+    position: relative;
+    overflow: hidden;
+  }
+  .phase-card::before {
+    content:'';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--brand) 0%, var(--gold) 55%, var(--brand-deep) 100%);
+    border-radius: 14px 14px 0 0;
+  }
+  .phase-header-row {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    margin-bottom: 1.25rem;
+  }
+  .phase-icon {
+    width: 42px; height: 42px; border-radius: 12px;
+    background: var(--brand-xquiet);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .phase-icon svg { width: 20px; height: 20px; color: var(--brand); stroke: var(--brand); }
+  .phase-title { font-size: 1.05rem; font-weight: 900; color: var(--brand-deep); }
+  .phase-subtitle { font-size: 0.8rem; color: var(--muted); margin-top: 1px; }
+
+  /* ── Setup Fields (big) ─────────────────────────────────────── */
+  .setup-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+  @media(max-width:640px){ .setup-grid { grid-template-columns: 1fr; } }
+  .setup-field label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--muted);
+    margin-bottom: 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+  }
+  .setup-input {
+    width: 100%;
+    min-height: 52px;
+    padding: 0.65rem 1rem;
+    border: 1.5px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--ink);
+    font-family: 'Cairo', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    transition: border-color .16s, box-shadow .16s;
+  }
+  .setup-input:focus {
+    outline: none;
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px rgba(1,101,100,0.14);
+  }
+  select.setup-input {
+    -webkit-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7f7e' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: left 0.75rem center;
+    padding-left: 2.25rem;
+    cursor: pointer;
+  }
+
+  /* ── Import Row ─────────────────────────────────────────────── */
+  .import-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.625rem;
+    margin-bottom: 0;
+  }
+  .import-btn {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    min-height: 40px; padding: 0.45rem 0.875rem;
+    border: 1px solid var(--line); border-radius: 8px;
+    background: var(--surface-soft); color: var(--ink-sub);
+    font-size: 0.84rem; font-weight: 700;
+    cursor: pointer; transition: all .15s;
+    font-family: 'Cairo', sans-serif;
+  }
+  .import-btn:hover { border-color: var(--brand); background: var(--brand-xquiet); color: var(--brand-deep); }
+  .import-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+  /* ── Phase Navigation ───────────────────────────────────────── */
+  .phase-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+    gap: 0.75rem;
+  }
+  .btn-next {
+    display: inline-flex; align-items: center; gap: 0.45rem;
+    min-height: 44px; padding: 0.55rem 1.5rem;
+    background: linear-gradient(160deg, var(--brand) 0%, var(--brand-deep) 100%);
+    color: #f0faf9; border: none; border-radius: 10px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 0.9rem; font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(1,101,100,0.22);
+    transition: all .16s;
+    margin-right: auto;
+  }
+  .btn-next:hover {
+    background: linear-gradient(160deg, #027e7d 0%, #0f3e3c 100%);
+    box-shadow: 0 4px 16px rgba(1,101,100,0.28);
+    transform: translateY(-1px);
+  }
+  .btn-prev {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    min-height: 44px; padding: 0.55rem 1.125rem;
+    border: 1.5px solid var(--line); border-radius: 10px;
+    background: #fff; color: var(--muted);
+    font-family: 'Cairo', sans-serif;
+    font-size: 0.875rem; font-weight: 700;
+    cursor: pointer; transition: all .15s;
+  }
+  .btn-prev:hover { border-color: var(--line-strong); color: var(--ink-sub); background: var(--surface-soft); }
+
+  /* ── Courses Section ────────────────────────────────────────── */
+  .courses-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .course-count-chip {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    background: var(--brand-xquiet); color: var(--brand-deep);
+    border: 1px solid rgba(1,101,100,0.18);
+    border-radius: 999px; padding: 0.2rem 0.65rem;
+    font-size: 0.78rem; font-weight: 800;
+  }
+  .course-count-chip .num { font-size: 1rem; font-weight: 900; color: var(--brand); }
+
+  /* ── Template Grid (new large version) ─────────────────────── */
+  .template-and-preview {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 1.25rem;
+    align-items: start;
+  }
+  @media(max-width:900px){ .template-and-preview { grid-template-columns: 1fr; } }
+
+  .template-grid-new {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.625rem;
+  }
+  .tpl-card {
+    border: 1.5px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(13,56,54,0.06);
+    transition: all .16s;
+    display: flex; flex-direction: column;
+  }
+  .tpl-card:hover {
+    border-color: var(--brand); transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(1,101,100,0.14);
+  }
+  .tpl-card.selected {
+    border-color: var(--brand); border-width: 2px;
+    box-shadow: 0 0 0 3px rgba(1,101,100,0.14), 0 4px 16px rgba(1,101,100,0.16);
+    transform: translateY(-2px);
+  }
+  .tpl-thumb-area {
+    height: 64px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .tpl-name {
+    padding: 0.3rem 0.4rem 0.35rem;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--ink-sub);
+    text-align: center;
+    border-top: 1px solid var(--line);
+    background: var(--surface-soft);
+    line-height: 1.3;
+  }
+  .tpl-card.selected .tpl-name { background: var(--brand-xquiet); color: var(--brand-deep); }
+
+  /* ── Live Preview ───────────────────────────────────────────── */
+  .live-preview-panel {
+    background: var(--surface-soft);
+    border: 1px solid rgba(1,101,100,0.12);
+    border-radius: 12px;
+    overflow: hidden;
+    position: sticky;
+    top: 76px;
+  }
+  .preview-topbar {
+    padding: 0.625rem 0.875rem;
+    border-bottom: 1px solid var(--line);
+    background: #fff;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .preview-topbar-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--gold);
+  }
+  .preview-topbar-label {
+    font-size: 0.75rem; font-weight: 800;
+    color: var(--muted);
+  }
+  .preview-topbar-name {
+    font-size: 0.75rem; font-weight: 700;
+    color: var(--brand-deep);
+    margin-right: auto;
+  }
+  #live-preview-wrap {
+    width: 100%;
+    aspect-ratio: 9/16;
+    display: flex; align-items: center; justify-content: center;
+    background: #e8f0ed;
+    position: relative;
+    min-height: 200px;
+  }
+  #live-preview-img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: none;
+  }
+  #live-preview-state {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 0.5rem;
+    color: var(--muted);
+    font-size: 0.78rem; font-weight: 700;
+  }
+  #live-preview-state svg { opacity: .4; }
+  .preview-spinner {
+    width: 24px; height: 24px;
+    border: 3px solid rgba(1,101,100,.2);
+    border-top-color: var(--brand);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: none;
+  }
+
+  /* ── Intro Settings ─────────────────────────────────────────── */
+  .intro-section {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line);
+  }
+  .intro-section-label {
+    font-size: 0.78rem; font-weight: 700;
+    color: var(--muted); margin-bottom: 0.6rem;
+    text-transform: uppercase; letter-spacing: .03em;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .intro-hint {
+    font-size: 0.75rem; color: var(--muted);
+    margin-top: 0.4rem; font-weight: 600;
+  }
+
+  /* ── Export Cards ───────────────────────────────────────────── */
+  .export-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+  @media(max-width:640px){ .export-grid { grid-template-columns: 1fr; } }
+  .export-card {
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    padding: 1.25rem;
+    background: #fff;
+    display: flex; flex-direction: column; gap: 0.75rem;
+  }
+  .export-card.primary {
+    border-color: rgba(30,78,110,.25);
+    background: linear-gradient(160deg, #f0f7ff 0%, #fff 100%);
+  }
+  .export-card-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--brand-xquiet);
+    flex-shrink: 0;
+  }
+  .export-card-icon svg { width: 20px; height: 20px; stroke: var(--brand); }
+  .export-card.primary .export-card-icon {
+    background: rgba(30,78,110,.1);
+  }
+  .export-card.primary .export-card-icon svg { stroke: #1e4e6e; }
+  .export-card-title {
+    font-size: 0.95rem; font-weight: 900; color: var(--ink);
+  }
+  .export-card-desc {
+    font-size: 0.78rem; color: var(--muted); line-height: 1.5;
+    flex: 1;
+  }
+  .export-card-actions {
+    display: flex; gap: 0.5rem; align-items: center;
+  }
+
+  /* ── Danger Zone ────────────────────────────────────────────── */
+  .danger-zone {
+    margin-top: 1rem;
+    border: 1px solid rgba(143,47,45,0.16);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .danger-zone summary {
+    padding: 0.625rem 1rem;
+    background: var(--danger-soft);
+    color: var(--danger);
+    font-size: 0.8rem; font-weight: 800;
+    cursor: pointer; user-select: none;
+    display: flex; align-items: center; gap: 0.4rem;
+    list-style: none;
+  }
+  .danger-zone summary::-webkit-details-marker { display: none; }
+  .danger-zone summary svg { width: 14px; height: 14px; }
+  .danger-zone-body {
+    padding: 1rem;
+    background: #fff;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .danger-zone-note {
+    font-size: 0.78rem; color: var(--muted); flex: 1; min-width: 160px;
+  }
+
+  /* ── Header slim ────────────────────────────────────────────── */
+  .app-title-block { line-height: 1.25; }
+  .app-title-org { font-size: 0.68rem; color: var(--muted); font-weight: 700; }
+  .app-title-name { font-size: 0.88rem; color: var(--brand-deep); font-weight: 900; }
+
+  /* ── Empty state ────────────────────────────────────────────── */
+  .empty-courses {
+    border: 1.5px dashed var(--line-strong);
+    border-radius: 12px;
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--muted);
+    background: var(--surface-soft);
+    margin-bottom: 1rem;
+  }
+  .empty-courses svg { margin: 0 auto 0.75rem; opacity: .35; display: block; }
+  .empty-courses-title { font-weight: 800; font-size: 0.9rem; color: var(--ink-sub); }
+  .empty-courses-sub { font-size: 0.78rem; margin-top: 0.3rem; }
+
+  @media(max-width:640px){
+    .step-label { font-size: 0.65rem; }
+    .step-num { width: 28px; height: 28px; font-size: 0.78rem; }
+    .phase-card { padding: 1rem; }
+    .template-grid-new { grid-template-columns: repeat(auto-fill, minmax(80px,1fr)); }
+    .live-preview-panel { position: static; }
+  }
+  </style>
 </head>
 <body>
 
-<!-- Toast Container -->
+<!-- ─── Toast ────────────────────────────────────────────────── -->
 <div id="toast-container" role="status" aria-live="polite"></div>
 
-<!-- ============================================================
-     HEADER
-     ============================================================ -->
+<!-- ─── HEADER ───────────────────────────────────────────────── -->
 <header class="bg-white border-b sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 py-2.5 flex justify-between items-center">
+  <div class="max-w-7xl mx-auto px-4 py-2.5 flex items-center gap-3">
+    <!-- Logo + App Name -->
+    <a href="#" onclick="gotoGenerator(); return false;" aria-label="الصفحة الرئيسية" class="flex items-center gap-3 flex-shrink-0">
+      <img src="https://nauss.edu.sa/Style%20Library/ar-sa/Styles/images/home/Logo.svg"
+           alt="شعار جامعة نايف العربية للعلوم الأمنية"
+           class="h-12 object-contain">
+      <div class="app-title-block hidden sm:block">
+        <div class="app-title-org">جامعة نايف العربية للعلوم الأمنية</div>
+        <div class="app-title-name">جدول الدورات التدريبية</div>
+      </div>
+    </a>
 
-        <!-- Logo -->
-        <a href="#" onclick="showPage('generator')" aria-label="الصفحة الرئيسية">
-            <img src="https://nauss.edu.sa/Style%20Library/ar-sa/Styles/images/home/Logo.svg"
-                 alt="شعار جامعة نايف العربية للعلوم الأمنية"
-                 class="h-20 object-contain">
-        </a>
-
-        <!-- Navigation -->
-        <nav class="flex items-center gap-1.5" aria-label="التنقل الرئيسي">
-            <button class="nav-tab active" onclick="resetAndShowGenerator()" aria-label="إنشاء جدول جديد">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M12 5v14M5 12h14"/>
-                </svg>
-                جدول جديد
-            </button>
-            <button class="nav-tab" onclick="showPage('archive')" aria-label="الجداول المنشأة">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <rect x="2" y="3" width="20" height="5" rx="1"/>
-                    <path d="M2 8h20v13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8z"/>
-                    <path d="m9 13 2 2 4-4"/>
-                </svg>
-                الجداول المنشأة
-            </button>
-        </nav>
-    </div>
+    <!-- Nav -->
+    <nav class="flex items-center gap-1.5 mr-auto" aria-label="التنقل الرئيسي">
+      <button id="nav-generator" class="nav-tab active" onclick="gotoGenerator()" aria-label="إنشاء جدول جديد">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        جدول جديد
+      </button>
+      <button id="nav-archive" class="nav-tab" onclick="showPage('archive')" aria-label="الجداول المحفوظة">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M2 8h20v13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8z"/><path d="m9 13 2 2 4-4"/></svg>
+        الجداول المحفوظة
+      </button>
+    </nav>
+  </div>
 </header>
 
-<!-- ============================================================
-     MAIN CONTENT
-     ============================================================ -->
+<!-- ─── MAIN ──────────────────────────────────────────────────── -->
 <main class="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6" id="main-content">
 
-    <!-- ====================================================
-         PAGE: GENERATOR
-         ==================================================== -->
-    <div id="page-generator" class="page-container active space-y-5">
+  <!-- ══════════════════════════════════════════════════════════
+       GENERATOR PAGE
+       ══════════════════════════════════════════════════════════ -->
+  <div id="page-generator" class="page-container active">
 
-        <!-- Section Header -->
-        <div class="flex justify-between items-center">
-            <div>
-                <h2 class="text-lg font-bold">تعبئة البيانات</h2>
-                <p class="text-xs text-slate-400 mt-0.5">أدخل بيانات الأنشطة التدريبية للأسبوع المطلوب</p>
-            </div>
-            <button onclick="clearCurrentData()" class="btn-danger flex items-center gap-1.5" aria-label="مسح جميع البيانات">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="m19 6-.867 12.142A2 2 0 0 1 16.138 20H7.862a2 2 0 0 1-1.995-1.858L5 6"/>
-                    <path d="M10 11v6M14 11v6"/>
-                    <path d="m8.5 6 .5-3h6l.5 3"/>
-                </svg>
-                مسح البيانات
+    <!-- STEP BAR -->
+    <div id="step-bar" class="step-bar" role="navigation" aria-label="مراحل الإنشاء">
+      <button class="step-item active" onclick="showStep(1)" data-step="1" aria-label="المرحلة 1: إعداد الجدول">
+        <div class="step-num">1</div>
+        <div class="step-label">إعداد الجدول</div>
+      </button>
+      <div class="step-connector" id="conn-1-2"></div>
+      <button class="step-item" onclick="showStep(2)" data-step="2" aria-label="المرحلة 2: الدورات">
+        <div class="step-num">2</div>
+        <div class="step-label">الدورات</div>
+      </button>
+      <div class="step-connector" id="conn-2-3"></div>
+      <button class="step-item" onclick="showStep(3)" data-step="3" aria-label="المرحلة 3: نمط التصميم">
+        <div class="step-num">3</div>
+        <div class="step-label">نمط التصميم</div>
+      </button>
+      <div class="step-connector" id="conn-3-4"></div>
+      <button class="step-item" onclick="showStep(4)" data-step="4" aria-label="المرحلة 4: التصدير">
+        <div class="step-num">4</div>
+        <div class="step-label">التصدير</div>
+      </button>
+    </div>
+
+    <!-- ══ PHASE 1: إعداد الجدول ══ -->
+    <div class="phase-section active" id="phase-1">
+      <div class="phase-card">
+        <div class="phase-header-row">
+          <div class="phase-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div>
+            <div class="phase-title">إعداد الجدول</div>
+            <div class="phase-subtitle">حدد رقم الأسبوع والموظف المسؤول</div>
+          </div>
+        </div>
+
+        <!-- Week + Employee -->
+        <div class="setup-grid">
+          <div class="setup-field">
+            <label for="w-id">رقم الأسبوع</label>
+            <input type="number" id="w-id" class="setup-input text-center" value="1"
+                   aria-label="رقم الأسبوع" min="1" max="53">
+          </div>
+          <div class="setup-field">
+            <label for="owner-select">الموظف المسؤول</label>
+            <select id="owner-select" class="setup-input" aria-label="اختر الموظف المسؤول">
+              <option value="" selected disabled>اختر الموظف...</option>
+              <option value="نايف الشهراني">نايف الشهراني</option>
+              <option value="مزنة آل محمود">مزنة آل محمود</option>
+              <option value="وليد السليم">وليد السليم</option>
+              <option value="خازم الأسمري">خازم الأسمري</option>
+              <option value="فؤاد نعمان">فؤاد نعمان</option>
+              <option value="عبدالمحسن العنزي">عبدالمحسن العنزي</option>
+              <option value="بشاير الطحيني">بشاير الطحيني</option>
+              <option value="يعقوب الشمري">يعقوب الشمري</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Import options -->
+        <div class="setup-field">
+          <label>استيراد البيانات</label>
+          <div class="import-row">
+            <label class="import-btn" aria-label="رفع ملف Excel">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              استيراد Excel
+              <input type="file" id="x-f" class="hidden" accept=".xlsx,.xls" onchange="rdExcel(event)">
+            </label>
+            <button id="smart-paste-btn" class="import-btn" onclick="openSmartPasteModal()" aria-label="لصق بيانات من LMS">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M17 4h1a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1"/><path d="M9 12h6M9 16h4"/></svg>
+              لصق من LMS
             </button>
+            <button class="import-btn" onclick="dlTpl()" aria-label="تحميل قالب Excel فارغ">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              قالب Excel
+            </button>
+          </div>
         </div>
 
-        <!-- Settings Card -->
-        <div class="bg-white rounded-xl shadow-sm p-4 border grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div class="phase-nav">
+          <span></span>
+          <button class="btn-next" onclick="showStep(2)">
+            التالي — إضافة الدورات
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" transform="rotate(180 12 12)"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
 
-            <!-- LEFT: Controls -->
-            <div class="space-y-3.5">
-
-                <!-- Week + Owner -->
-                <div class="flex gap-2.5">
-                    <div class="flex-1">
-                        <label class="field-label" for="w-id">رقم الأسبوع</label>
-                        <input type="number" id="w-id" class="form-input text-center font-bold" value="1"
-                               aria-label="رقم الأسبوع" min="1" max="53">
-                    </div>
-                    <div class="flex-1">
-                        <label class="field-label" for="owner-select">الموظف المسؤول</label>
-                        <select id="owner-select" class="form-input font-bold" aria-label="اختر الموظف المسؤول">
-                            <option value="" selected disabled>اختر...</option>
-                            <option value="نايف الشهراني">نايف الشهراني</option>
-                            <option value="مزنة آل محمود">مزنة آل محمود</option>
-                            <option value="وليد السليم">وليد السليم</option>
-                            <option value="خازم الأسمري">خازم الأسمري</option>
-                            <option value="فؤاد نعمان">فؤاد نعمان</option>
-                            <option value="عبدالمحسن العنزي">عبدالمحسن العنزي</option>
-                            <option value="بشاير الطحيني">بشاير الطحيني</option>
-                            <option value="يعقوب الشمري">يعقوب الشمري</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Import / Template -->
-                <div class="flex gap-2.5">
-                    <div class="flex-1">
-                        <label class="field-label">استيراد جدول</label>
-                        <label class="form-input cursor-pointer flex items-center justify-center gap-1.5 text-sm hover:bg-slate-50 border-dashed"
-                               aria-label="رفع ملف Excel">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                <polyline points="17 8 12 3 7 8"/>
-                                <line x1="12" y1="3" x2="12" y2="15"/>
-                            </svg>
-                            رفع ملف
-                            <input type="file" id="x-f" class="hidden" accept=".xlsx,.xls" onchange="rdExcel(event)">
-                        </label>
-                    </div>
-                    <div class="flex-1">
-                        <label class="field-label">قالب Excel</label>
-                        <button onclick="dlTpl()" class="form-input flex items-center justify-center gap-1.5 text-sm hover:bg-slate-50"
-                                aria-label="تحميل قالب Excel">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                <polyline points="7 10 12 15 17 10"/>
-                                <line x1="12" y1="15" x2="12" y2="3"/>
-                            </svg>
-                            تحميل
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Add row -->
-                <button onclick="addRow()" class="btn-main w-full" aria-label="إضافة دورة تدريبية جديدة">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M12 5v14M5 12h14"/>
-                    </svg>
-                    إضافة دورة
-                </button>
+    <!-- ══ PHASE 2: الدورات التدريبية ══ -->
+    <div class="phase-section" id="phase-2">
+      <div class="phase-card">
+        <div class="courses-header">
+          <div class="flex items-center gap-2.5">
+            <div class="phase-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             </div>
-
-            <!-- RIGHT: Template + Intro + Actions -->
-            <div class="col-span-2 space-y-4">
-
-                <!-- Template selector -->
-                <div>
-                    <label class="field-label">نمط التصميم</label>
-                    <div class="grid grid-cols-4 md:grid-cols-9 gap-2">
-                        <div onclick="selectTemplate(1)" class="template-thumb selected" id="tpl-1" title="Modern" role="button" tabindex="0" aria-label="قالب MODERN">
-                            <div class="w-full h-full bg-gradient-to-br from-white to-slate-50 flex items-center justify-center text-[#2c6060] text-[8px] font-black border-b-2 border-[#016564]">MODERN</div>
-                        </div>
-                        <div onclick="selectTemplate(2)" class="template-thumb" id="tpl-2" title="Luxury" role="button" tabindex="0" aria-label="قالب LUXURY">
-                            <div class="w-full h-full bg-[#016564] flex items-center justify-center text-[#d0b284] text-[8px] font-black">LUXURY</div>
-                        </div>
-                        <div onclick="selectTemplate(3)" class="template-thumb" id="tpl-3" title="Vibrant" role="button" tabindex="0" aria-label="قالب VIBRANT">
-                            <div class="w-full h-full bg-gradient-to-r from-teal-500 to-blue-500 flex items-center justify-center text-white text-[8px] font-black">VIBRANT</div>
-                        </div>
-                        <div onclick="selectTemplate(4)" class="template-thumb" id="tpl-4" title="iOS" role="button" tabindex="0" aria-label="قالب iOS">
-                            <div class="w-full h-full bg-[#f5f5f7] flex flex-col items-center justify-center gap-0.5">
-                                <div class="w-4 h-4 rounded bg-[#1d1d1f]"></div>
-                                <div class="text-[7px] font-black text-[#1d1d1f]">iOS</div>
-                            </div>
-                        </div>
-                        <div onclick="selectTemplate(12)" class="template-thumb" id="tpl-12" title="Reference 1" role="button" tabindex="0" aria-label="قالب REF 1">
-                            <div class="w-full h-full bg-[#f8f4ea] flex items-center justify-center text-[#0d3d3c] text-[8px] font-black border-t-[8px] border-[#0d3d3c]">REF 1</div>
-                        </div>
-                        <div onclick="selectTemplate(13)" class="template-thumb" id="tpl-13" title="Reference 2" role="button" tabindex="0" aria-label="قالب REF 2">
-                            <div class="w-full h-full bg-[#fbfaf6] flex items-center justify-center text-[#d0b284] text-[8px] font-black border-b-[8px] border-[#0d3d3c]">REF 2</div>
-                        </div>
-                        <div onclick="selectTemplate(14)" class="template-thumb" id="tpl-14" title="Reference 3" role="button" tabindex="0" aria-label="قالب REF 3">
-                            <div class="w-full h-full bg-[#f7f3e9] flex items-center justify-center text-[#0d3d3c] text-[8px] font-black border-r-[8px] border-[#d0b284]">REF 3</div>
-                        </div>
-                        <div onclick="selectTemplate(15)" class="template-thumb" id="tpl-15" title="Reference 4" role="button" tabindex="0" aria-label="قالب REF 4">
-                            <div class="w-full h-full flex flex-col" style="background:#f2ede2">
-                                <div class="h-[14px] w-full" style="background:linear-gradient(90deg,#0d3d3b,#07282a)"></div>
-                                <div class="flex-1 flex items-center justify-center gap-1">
-                                    <div class="w-2 h-2 rounded-full" style="background:#c8a86e"></div>
-                                    <span class="text-[8px] font-black" style="color:#0d3d3c">REF 4</span>
-                                </div>
-                                <div class="h-[8px] w-full" style="background:#c8a86e;opacity:0.5"></div>
-                            </div>
-                        </div>
-                        <div onclick="selectTemplate(16)" class="template-thumb" id="tpl-16" title="Reference 5" role="button" tabindex="0" aria-label="قالب REF 5">
-                            <div class="w-full h-full flex" style="background:#f9f5ed">
-                                <div class="flex-1 flex items-center justify-center">
-                                    <span class="text-[8px] font-black" style="color:#0d3d3c">REF 5</span>
-                                </div>
-                                <div class="w-[14px] h-full flex flex-col items-center justify-center gap-1" style="background:#0d3d3b">
-                                    <div class="w-2 h-2 rounded-full" style="background:#c8a86e"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div onclick="selectTemplate(17)" class="template-thumb" id="tpl-17" title="شبكة 2×2" role="button" tabindex="0" aria-label="قالب N1 شبكة">
-                            <div class="w-full h-full grid grid-cols-2 gap-[2px] p-[2px]" style="background:#f1f5f3">
-                                <div class="flex flex-col gap-[1px]"><div class="h-[7px] rounded-[1px]" style="background:#2A6364"></div><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde"></div></div>
-                                <div class="flex flex-col gap-[1px]"><div class="h-[7px] rounded-[1px]" style="background:#2A6364"></div><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde"></div></div>
-                                <div class="flex flex-col gap-[1px]"><div class="h-[7px] rounded-[1px]" style="background:#2A6364"></div><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde"></div></div>
-                                <div class="flex flex-col gap-[1px]"><div class="h-[7px] rounded-[1px]" style="background:#2A6364"></div><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde"></div></div>
-                            </div>
-                        </div>
-                        <div onclick="selectTemplate(18)" class="template-thumb" id="tpl-18" title="أفقي يمين" role="button" tabindex="0" aria-label="قالب N2 أفقي">
-                            <div class="w-full h-full flex flex-col gap-[2px] p-[2px]" style="background:#f1f5f3">
-                                <div class="flex-1 flex gap-0"><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-radius:2px 0 0 2px"></div><div class="w-[5px]" style="background:#2A6364;border-radius:0 2px 2px 0"></div></div>
-                                <div class="flex-1 flex gap-0"><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-radius:2px 0 0 2px"></div><div class="w-[5px]" style="background:#2A6364;border-radius:0 2px 2px 0"></div></div>
-                                <div class="flex-1 flex gap-0"><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-radius:2px 0 0 2px"></div><div class="w-[5px]" style="background:#2A6364;border-radius:0 2px 2px 0"></div></div>
-                                <div class="flex-1 flex gap-0"><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-radius:2px 0 0 2px"></div><div class="w-[5px]" style="background:#2A6364;border-radius:0 2px 2px 0"></div></div>
-                            </div>
-                        </div>
-                        <div onclick="selectTemplate(19)" class="template-thumb" id="tpl-19" title="خط زمني" role="button" tabindex="0" aria-label="قالب N3 خط زمني">
-                            <div class="w-full h-full flex gap-[3px] p-[2px]" style="background:#f1f5f3">
-                                <div class="flex-1 flex flex-col gap-[2px]">
-                                    <div class="flex-1 rounded-[1px]" style="background:linear-gradient(180deg,#2A6364 20%,#fff 20%);border:1px solid #dde"></div>
-                                    <div class="flex-1 rounded-[1px]" style="background:linear-gradient(180deg,#2A6364 20%,#fff 20%);border:1px solid #dde"></div>
-                                    <div class="flex-1 rounded-[1px]" style="background:linear-gradient(180deg,#2A6364 20%,#fff 20%);border:1px solid #dde"></div>
-                                    <div class="flex-1 rounded-[1px]" style="background:linear-gradient(180deg,#2A6364 20%,#fff 20%);border:1px solid #dde"></div>
-                                </div>
-                                <div class="w-[4px] flex flex-col items-center justify-around" style="border-left:2px dashed #C7B08C">
-                                    <div class="w-[6px] h-[6px] rounded-full -ml-[4px]" style="background:#2A6364;border:1px solid #C7B08C"></div>
-                                    <div class="w-[6px] h-[6px] rounded-full -ml-[4px]" style="background:#2A6364;border:1px solid #C7B08C"></div>
-                                    <div class="w-[6px] h-[6px] rounded-full -ml-[4px]" style="background:#2A6364;border:1px solid #C7B08C"></div>
-                                    <div class="w-[6px] h-[6px] rounded-full -ml-[4px]" style="background:#2A6364;border:1px solid #C7B08C"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div onclick="selectTemplate(20)" class="template-thumb" id="tpl-20" title="تنفيذي" role="button" tabindex="0" aria-label="قالب N4 تنفيذي">
-                            <div class="w-full h-full flex flex-col gap-[2px] p-[2px]" style="background:#f1f5f3">
-                                <div class="flex-1 flex gap-0"><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-top:3px solid #C7B08C;border-radius:2px 0 0 2px"></div><div class="w-[6px]" style="background:#2A6364;border-radius:0 2px 2px 0"></div></div>
-                                <div class="flex-1 flex gap-0"><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-top:3px solid #C7B08C;border-radius:2px 0 0 2px"></div><div class="w-[6px]" style="background:#2A6364;border-radius:0 2px 2px 0"></div></div>
-                                <div class="flex-1 flex gap-0"><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-top:3px solid #C7B08C;border-radius:2px 0 0 2px"></div><div class="w-[6px]" style="background:#2A6364;border-radius:0 2px 2px 0"></div></div>
-                                <div class="flex-1 flex gap-0"><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-top:3px solid #C7B08C;border-radius:2px 0 0 2px"></div><div class="w-[6px]" style="background:#2A6364;border-radius:0 2px 2px 0"></div></div>
-                            </div>
-                        </div>
-                        <div onclick="selectTemplate(21)" class="template-thumb" id="tpl-21" title="عمليات" role="button" tabindex="0" aria-label="قالب N5 عمليات">
-                            <div class="w-full h-full flex flex-col gap-[2px] p-[2px]" style="background:#f1f5f3">
-                                <div class="flex-1 flex gap-0"><div class="w-[6px]" style="background:#2A6364;border-radius:2px 0 0 2px"></div><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-top:3px solid #C7B08C;border-radius:0 2px 2px 0"></div></div>
-                                <div class="flex-1 flex gap-0"><div class="w-[6px]" style="background:#2A6364;border-radius:2px 0 0 2px"></div><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-top:3px solid #C7B08C;border-radius:0 2px 2px 0"></div></div>
-                                <div class="flex-1 flex gap-0"><div class="w-[6px]" style="background:#2A6364;border-radius:2px 0 0 2px"></div><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-top:3px solid #C7B08C;border-radius:0 2px 2px 0"></div></div>
-                                <div class="flex-1 flex gap-0"><div class="w-[6px]" style="background:#2A6364;border-radius:2px 0 0 2px"></div><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-top:3px solid #C7B08C;border-radius:0 2px 2px 0"></div></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Intro settings -->
-                <div class="settings-panel space-y-2">
-                    <label class="field-label" for="intro-mode">النص التمهيدي لصور العرض</label>
-                    <select id="intro-mode" class="form-input text-sm" onchange="handleIntroModeChange()" aria-label="اختر نوع النص التمهيدي">
-                        <option value="default" selected>العبارة الافتراضية لبرنامج الشراكات الدولية</option>
-                        <option value="custom">نص مخصص</option>
-                        <option value="none">بدون نص تمهيدي</option>
-                    </select>
-                    <textarea id="intro-custom"
-                              class="form-input text-sm hidden"
-                              oninput="saveIntroSettings()"
-                              placeholder="اكتب النص التمهيدي الذي سيظهر في صور العرض"
-                              aria-label="النص التمهيدي المخصص"
-                              style="min-height:72px;resize:vertical"></textarea>
-                </div>
-
-                <!-- Action buttons -->
-                <div class="space-y-2">
-                    <!-- Generate Screens -->
-                    <div class="flex gap-2 items-center">
-                        <button onclick="startScreenSave()" class="btn-main btn-screens flex-1" aria-label="توليد صور شاشة العرض">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <rect x="2" y="3" width="20" height="14" rx="2"/>
-                                <path d="M8 21h8M12 17v4"/>
-                            </svg>
-                            توليد صور العرض
-                        </button>
-                        <button id="btn-share-screen" onclick="shareScreenImages()"
-                                title="تنزيل مسودة بريد شاشة مدخل المبنى"
-                                class="btn-icon"
-                                aria-label="مشاركة صور شاشة العرض">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                                <polyline points="16 6 12 2 8 6"/>
-                                <line x1="12" y1="2" x2="12" y2="15"/>
-                            </svg>
-                        </button>
-                    </div>
-                    <!-- Generate Agent Report -->
-                    <div class="flex gap-2 items-center">
-                        <button onclick="startAgentReport()" class="btn-main flex-1" aria-label="توليد تقرير الوكيل">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                <polyline points="14 2 14 8 20 8"/>
-                                <line x1="16" y1="13" x2="8" y2="13"/>
-                                <line x1="16" y1="17" x2="8" y2="17"/>
-                                <polyline points="10 9 9 9 8 9"/>
-                            </svg>
-                            توليد تقرير الوكيل
-                        </button>
-                        <button id="btn-share-report" onclick="shareAgentReport()"
-                                title="تنزيل مسودة بريد الوكيل"
-                                class="btn-icon"
-                                aria-label="مشاركة تقرير الوكيل">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                                <polyline points="16 6 12 2 8 6"/>
-                                <line x1="12" y1="2" x2="12" y2="15"/>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-
+            <div>
+              <div class="phase-title">الدورات التدريبية</div>
+              <div id="course-counter-display" class="phase-subtitle">أضف الدورات المجدولة لهذا الأسبوع</div>
             </div>
+          </div>
+          <button onclick="addRow()" class="btn-main" aria-label="إضافة دورة تدريبية جديدة">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            إضافة دورة
+          </button>
         </div>
 
-        <!-- Rows -->
-        <div id="rows-box" class="pb-4"></div>
-
-    </div><!-- /page-generator -->
-
-    <!-- ====================================================
-         PAGE: ARCHIVE
-         ==================================================== -->
-    <div id="page-archive" class="page-container">
-        <div class="bg-white rounded-xl shadow-sm p-6 min-h-[60vh]">
-            <div class="flex justify-between items-center mb-5 pb-3 border-b">
-                <div>
-                    <h2 class="text-xl font-bold">الجداول المنشأة سابقاً</h2>
-                    <p class="text-xs text-slate-400 mt-0.5">استعرض الجداول الأسبوعية المحفوظة أو عدّل عليها</p>
-                </div>
-            </div>
-            <div id="archive-list" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
-            <div id="no-archive" class="hidden flex flex-col items-center justify-center py-16 text-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#b5ccc8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-3" aria-hidden="true">
-                    <rect x="2" y="3" width="20" height="5" rx="1"/>
-                    <path d="M2 8h20v13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8z"/>
-                    <path d="m9 13 2 2 4-4"/>
-                </svg>
-                <p class="text-slate-400 font-semibold">لا توجد جداول مؤرشفة</p>
-                <p class="text-slate-300 text-xs mt-1">سيظهر هنا كل جدول تقوم بتوليده</p>
-            </div>
+        <!-- Empty state (shown when no rows) -->
+        <div id="empty-courses-hint" class="empty-courses">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" stroke="#93b4b0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <div class="empty-courses-title">لم تُضَف أي دورات بعد</div>
+          <div class="empty-courses-sub">اضغط "إضافة دورة" أو استورد ملف Excel</div>
         </div>
-    </div><!-- /page-archive -->
+
+        <!-- Rows container -->
+        <div id="rows-box" class="pb-2"></div>
+
+        <div class="phase-nav">
+          <button class="btn-prev" onclick="showStep(1)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" transform="rotate(180 12 12)"/></svg>
+            إعداد الجدول
+          </button>
+          <button class="btn-next" onclick="showStep(3)">
+            التالي — اختيار التصميم
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" transform="rotate(180 12 12)"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PHASE 3: نمط التصميم ══ -->
+    <div class="phase-section" id="phase-3">
+      <div class="phase-card">
+        <div class="phase-header-row">
+          <div class="phase-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/><circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/><circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/><circle cx="6.5" cy="12.5" r="0.5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+          </div>
+          <div>
+            <div class="phase-title">نمط التصميم</div>
+            <div class="phase-subtitle">اختر القالب وستظهر معاينة فورية</div>
+          </div>
+        </div>
+
+        <div class="template-and-preview">
+          <!-- Template Grid -->
+          <div>
+            <div class="template-grid-new" role="radiogroup" aria-label="اختر نمط التصميم">
+
+              <!-- MODERN -->
+              <div onclick="selectTemplate(1)" class="tpl-card selected" id="tpl-1" role="radio" aria-checked="true" tabindex="0" aria-label="قالب عصري">
+                <div class="tpl-thumb-area"><div class="w-full h-full bg-gradient-to-br from-white to-slate-50 flex items-center justify-center text-[#2c6060] text-[8px] font-black border-b-2 border-[#016564]">MODERN</div></div>
+                <div class="tpl-name">العصري</div>
+              </div>
+
+              <!-- LUXURY -->
+              <div onclick="selectTemplate(2)" class="tpl-card" id="tpl-2" role="radio" aria-checked="false" tabindex="0" aria-label="قالب فاخر">
+                <div class="tpl-thumb-area"><div class="w-full h-full bg-[#016564] flex items-center justify-center text-[#d0b284] text-[8px] font-black">LUXURY</div></div>
+                <div class="tpl-name">الداكن الفاخر</div>
+              </div>
+
+              <!-- VIBRANT -->
+              <div onclick="selectTemplate(3)" class="tpl-card" id="tpl-3" role="radio" aria-checked="false" tabindex="0" aria-label="قالب حيوي">
+                <div class="tpl-thumb-area"><div class="w-full h-full bg-gradient-to-r from-teal-500 to-blue-500 flex items-center justify-center text-white text-[8px] font-black">VIBRANT</div></div>
+                <div class="tpl-name">الحيوي</div>
+              </div>
+
+              <!-- iOS -->
+              <div onclick="selectTemplate(4)" class="tpl-card" id="tpl-4" role="radio" aria-checked="false" tabindex="0" aria-label="قالب iOS">
+                <div class="tpl-thumb-area"><div class="w-full h-full bg-[#f5f5f7] flex flex-col items-center justify-center gap-0.5"><div class="w-4 h-4 rounded bg-[#1d1d1f]"></div><div class="text-[7px] font-black text-[#1d1d1f]">iOS</div></div></div>
+                <div class="tpl-name">iOS فائق</div>
+              </div>
+
+              <!-- REF 1 → الشريط الجانبي -->
+              <div onclick="selectTemplate(12)" class="tpl-card" id="tpl-12" role="radio" aria-checked="false" tabindex="0" aria-label="قالب الشريط الجانبي">
+                <div class="tpl-thumb-area"><div class="w-full h-full bg-[#f8f4ea] flex items-center justify-center text-[#0d3d3c] text-[7px] font-black border-t-[6px] border-[#0d3d3c]">جانبي</div></div>
+                <div class="tpl-name">الشريط الجانبي</div>
+              </div>
+
+              <!-- REF 2 → الخط الزمني (قديم) -->
+              <div onclick="selectTemplate(13)" class="tpl-card" id="tpl-13" role="radio" aria-checked="false" tabindex="0" aria-label="قالب الخط الزمني القديم">
+                <div class="tpl-thumb-area"><div class="w-full h-full bg-[#fbfaf6] flex items-center justify-center text-[#d0b284] text-[7px] font-black border-b-[6px] border-[#0d3d3c]">زمني</div></div>
+                <div class="tpl-name">الخط الزمني ١</div>
+              </div>
+
+              <!-- REF 3 → التنفيذي الورقي -->
+              <div onclick="selectTemplate(14)" class="tpl-card" id="tpl-14" role="radio" aria-checked="false" tabindex="0" aria-label="قالب التنفيذي الورقي">
+                <div class="tpl-thumb-area"><div class="w-full h-full bg-[#f7f3e9] flex items-center justify-center text-[#0d3d3c] text-[7px] font-black border-r-[6px] border-[#d0b284]">ورقي</div></div>
+                <div class="tpl-name">التنفيذي الورقي</div>
+              </div>
+
+              <!-- REF 4 → الشبكة الكلاسيكية -->
+              <div onclick="selectTemplate(15)" class="tpl-card" id="tpl-15" role="radio" aria-checked="false" tabindex="0" aria-label="قالب الشبكة الكلاسيكية">
+                <div class="tpl-thumb-area" style="background:#f2ede2"><div class="h-[10px] w-full" style="background:linear-gradient(90deg,#0d3d3b,#07282a)"></div><div class="flex-1 flex items-center justify-center gap-1 py-2"><span class="text-[7px] font-black" style="color:#0d3d3c">شبكة</span></div></div>
+                <div class="tpl-name">الشبكة الكلاسيكية</div>
+              </div>
+
+              <!-- REF 5 → لوحة التشغيل القديمة -->
+              <div onclick="selectTemplate(16)" class="tpl-card" id="tpl-16" role="radio" aria-checked="false" tabindex="0" aria-label="قالب لوحة التشغيل">
+                <div class="tpl-thumb-area" style="background:#f9f5ed;display:flex"><div style="flex:1;display:flex;align-items:center;justify-content:center"><span class="text-[7px] font-black" style="color:#0d3d3c">لوحة</span></div><div style="width:10px;background:#0d3d3b"></div></div>
+                <div class="tpl-name">لوحة التشغيل ١</div>
+              </div>
+
+              <!-- N1 → الشبكة المتميزة -->
+              <div onclick="selectTemplate(17)" class="tpl-card" id="tpl-17" role="radio" aria-checked="false" tabindex="0" aria-label="قالب الشبكة المتميزة">
+                <div class="tpl-thumb-area">
+                  <div class="w-full h-full grid grid-cols-2 gap-[2px] p-[2px]" style="background:#f1f5f3">
+                    <div class="flex flex-col gap-[1px]"><div class="h-[7px] rounded-[1px]" style="background:#2A6364"></div><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde"></div></div>
+                    <div class="flex flex-col gap-[1px]"><div class="h-[7px] rounded-[1px]" style="background:#2A6364"></div><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde"></div></div>
+                    <div class="flex flex-col gap-[1px]"><div class="h-[7px] rounded-[1px]" style="background:#2A6364"></div><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde"></div></div>
+                    <div class="flex flex-col gap-[1px]"><div class="h-[7px] rounded-[1px]" style="background:#2A6364"></div><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde"></div></div>
+                  </div>
+                </div>
+                <div class="tpl-name">الشبكة المتميزة</div>
+              </div>
+
+              <!-- N2 → أفقي يمين -->
+              <div onclick="selectTemplate(18)" class="tpl-card" id="tpl-18" role="radio" aria-checked="false" tabindex="0" aria-label="قالب أفقي يمين">
+                <div class="tpl-thumb-area">
+                  <div class="w-full h-full flex flex-col gap-[2px] p-[2px]" style="background:#f1f5f3">
+                    <div class="flex-1 flex gap-0"><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde"></div><div class="w-[5px]" style="background:#2A6364"></div></div>
+                    <div class="flex-1 flex gap-0"><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde"></div><div class="w-[5px]" style="background:#2A6364"></div></div>
+                    <div class="flex-1 flex gap-0"><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde"></div><div class="w-[5px]" style="background:#2A6364"></div></div>
+                    <div class="flex-1 flex gap-0"><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde"></div><div class="w-[5px]" style="background:#2A6364"></div></div>
+                  </div>
+                </div>
+                <div class="tpl-name">أفقي — يمين</div>
+              </div>
+
+              <!-- N3 → الجدول الزمني -->
+              <div onclick="selectTemplate(19)" class="tpl-card" id="tpl-19" role="radio" aria-checked="false" tabindex="0" aria-label="قالب الجدول الزمني">
+                <div class="tpl-thumb-area">
+                  <div class="w-full h-full flex gap-[3px] p-[2px]" style="background:#f1f5f3">
+                    <div class="flex-1 flex flex-col gap-[2px]">
+                      <div class="flex-1 rounded-[1px]" style="background:linear-gradient(180deg,#2A6364 20%,#fff 20%);border:1px solid #dde"></div>
+                      <div class="flex-1 rounded-[1px]" style="background:linear-gradient(180deg,#2A6364 20%,#fff 20%);border:1px solid #dde"></div>
+                      <div class="flex-1 rounded-[1px]" style="background:linear-gradient(180deg,#2A6364 20%,#fff 20%);border:1px solid #dde"></div>
+                      <div class="flex-1 rounded-[1px]" style="background:linear-gradient(180deg,#2A6364 20%,#fff 20%);border:1px solid #dde"></div>
+                    </div>
+                    <div class="w-[4px] flex flex-col items-center justify-around" style="border-left:2px dashed #C7B08C">
+                      <div class="w-[6px] h-[6px] rounded-full -ml-[4px]" style="background:#2A6364;border:1px solid #C7B08C"></div>
+                      <div class="w-[6px] h-[6px] rounded-full -ml-[4px]" style="background:#2A6364;border:1px solid #C7B08C"></div>
+                      <div class="w-[6px] h-[6px] rounded-full -ml-[4px]" style="background:#2A6364;border:1px solid #C7B08C"></div>
+                      <div class="w-[6px] h-[6px] rounded-full -ml-[4px]" style="background:#2A6364;border:1px solid #C7B08C"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="tpl-name">الجدول الزمني</div>
+              </div>
+
+              <!-- N4 → التنفيذي الفاخر -->
+              <div onclick="selectTemplate(20)" class="tpl-card" id="tpl-20" role="radio" aria-checked="false" tabindex="0" aria-label="قالب التنفيذي الفاخر">
+                <div class="tpl-thumb-area">
+                  <div class="w-full h-full flex flex-col gap-[2px] p-[2px]" style="background:#f1f5f3">
+                    <div class="flex-1 flex gap-0"><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-top:3px solid #C7B08C"></div><div class="w-[6px]" style="background:#2A6364"></div></div>
+                    <div class="flex-1 flex gap-0"><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-top:3px solid #C7B08C"></div><div class="w-[6px]" style="background:#2A6364"></div></div>
+                    <div class="flex-1 flex gap-0"><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-top:3px solid #C7B08C"></div><div class="w-[6px]" style="background:#2A6364"></div></div>
+                    <div class="flex-1 flex gap-0"><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-top:3px solid #C7B08C"></div><div class="w-[6px]" style="background:#2A6364"></div></div>
+                  </div>
+                </div>
+                <div class="tpl-name">التنفيذي الفاخر</div>
+              </div>
+
+              <!-- N5 → لوحة العمليات -->
+              <div onclick="selectTemplate(21)" class="tpl-card" id="tpl-21" role="radio" aria-checked="false" tabindex="0" aria-label="قالب لوحة العمليات">
+                <div class="tpl-thumb-area">
+                  <div class="w-full h-full flex flex-col gap-[2px] p-[2px]" style="background:#f1f5f3">
+                    <div class="flex-1 flex gap-0"><div class="w-[6px]" style="background:#2A6364"></div><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-top:3px solid #C7B08C"></div></div>
+                    <div class="flex-1 flex gap-0"><div class="w-[6px]" style="background:#2A6364"></div><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-top:3px solid #C7B08C"></div></div>
+                    <div class="flex-1 flex gap-0"><div class="w-[6px]" style="background:#2A6364"></div><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-top:3px solid #C7B08C"></div></div>
+                    <div class="flex-1 flex gap-0"><div class="w-[6px]" style="background:#2A6364"></div><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-top:3px solid #C7B08C"></div></div>
+                  </div>
+                </div>
+                <div class="tpl-name">لوحة العمليات</div>
+              </div>
+
+            </div><!-- /template-grid-new -->
+
+            <!-- Intro Text Settings -->
+            <div class="intro-section">
+              <div class="intro-section-label">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                النص التعريفي أعلى الجدول
+              </div>
+              <select id="intro-mode" class="form-input text-sm" onchange="handleIntroModeChange()" aria-label="اختر نوع النص التعريفي">
+                <option value="default" selected>العبارة الافتراضية — برنامج الشراكات الدولية</option>
+                <option value="custom">نص مخصص</option>
+                <option value="none">بدون نص تعريفي</option>
+              </select>
+              <textarea id="intro-custom"
+                        class="form-input text-sm mt-2 hidden"
+                        oninput="saveIntroSettings()"
+                        placeholder="اكتب النص الذي سيظهر أعلى صورة الجدول..."
+                        aria-label="النص التعريفي المخصص"
+                        style="min-height:68px;resize:vertical"></textarea>
+              <div class="intro-hint">سيظهر هذا النص أعلى صورة جدول الدورات المُولَّدة.</div>
+            </div>
+          </div>
+
+          <!-- Live Preview Panel -->
+          <div class="live-preview-panel">
+            <div class="preview-topbar">
+              <div class="preview-topbar-dot"></div>
+              <span class="preview-topbar-label">معاينة مباشرة</span>
+              <span class="preview-topbar-name" id="selected-tpl-name">العصري</span>
+            </div>
+            <div id="live-preview-wrap">
+              <img id="live-preview-img" alt="معاينة القالب المحدد">
+              <div id="live-preview-state">
+                <div class="preview-spinner" id="preview-spinner"></div>
+                <svg id="preview-empty-icon" xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="none" stroke="#93b4b0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <span id="preview-state-text">أضف دورات لرؤية المعاينة</span>
+              </div>
+            </div>
+          </div>
+        </div><!-- /template-and-preview -->
+
+        <div class="phase-nav">
+          <button class="btn-prev" onclick="showStep(2)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" transform="rotate(180 12 12)"/></svg>
+            الدورات
+          </button>
+          <button class="btn-next" onclick="showStep(4)">
+            التالي — التصدير
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" transform="rotate(180 12 12)"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PHASE 4: التصدير ══ -->
+    <div class="phase-section" id="phase-4">
+      <div class="phase-card">
+        <div class="phase-header-row">
+          <div class="phase-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <div>
+            <div class="phase-title">التصدير والمشاركة</div>
+            <div class="phase-subtitle">ولِّد صور الجدول وتقارير البريد الإلكتروني</div>
+          </div>
+        </div>
+
+        <div class="export-grid">
+          <!-- Export Card 1: Screen Images -->
+          <div class="export-card primary">
+            <div class="export-card-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            </div>
+            <div>
+              <div class="export-card-title">صور شاشة العرض</div>
+              <div class="export-card-desc">صور 8K جاهزة للعرض على شاشة مدخل المبنى بالنمط المحدد.</div>
+            </div>
+            <div class="export-card-actions">
+              <button onclick="startScreenSave()" class="btn-main btn-screens flex-1" aria-label="توليد صور شاشة العرض">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                توليد الصور
+              </button>
+              <button id="btn-share-screen" onclick="shareScreenImages()"
+                      title="تنزيل مسودة بريد شاشة مدخل المبنى"
+                      class="btn-icon" aria-label="إرسال مسودة بريد الشاشة">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Export Card 2: Agent Report -->
+          <div class="export-card">
+            <div class="export-card-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            <div>
+              <div class="export-card-title">تقرير الوكيل</div>
+              <div class="export-card-desc">صورة ملخص للوكيل التدريبي بتنسيق عمودي يحتوي جميع الدورات.</div>
+            </div>
+            <div class="export-card-actions">
+              <button onclick="startAgentReport()" class="btn-main flex-1" aria-label="توليد تقرير الوكيل">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                توليد التقرير
+              </button>
+              <button id="btn-share-report" onclick="shareAgentReport()"
+                      title="تنزيل مسودة بريد الوكيل"
+                      class="btn-icon" aria-label="إرسال مسودة بريد الوكيل">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="phase-nav">
+          <button class="btn-prev" onclick="showStep(3)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" transform="rotate(180 12 12)"/></svg>
+            نمط التصميم
+          </button>
+          <span class="text-xs text-slate-400 font-semibold">تأكد من إدخال الدورات واختيار الموظف المسؤول</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Danger Zone -->
+    <details class="danger-zone mt-3">
+      <summary>
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m10.29 3.86-8.6 14.9A1 1 0 0 0 2.54 20h17.92a1 1 0 0 0 .85-1.54l-8.6-14.9a1 1 0 0 0-1.72 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        إجراءات متقدمة
+      </summary>
+      <div class="danger-zone-body">
+        <div>
+          <div class="font-bold text-sm text-slate-600 mb-0.5">حذف جميع بيانات الجدول الحالي</div>
+          <div class="danger-zone-note">سيُحذف جميع الدورات المُدخلة في الجدول الحالي. لا يمكن التراجع.</div>
+        </div>
+        <button onclick="confirmClearData()" class="btn-danger" aria-label="حذف جميع البيانات">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="m19 6-.867 12.142A2 2 0 0 1 16.138 20H7.862a2 2 0 0 1-1.995-1.858L5 6"/><path d="M10 11v6M14 11v6"/><path d="m8.5 6 .5-3h6l .5 3"/></svg>
+          حذف الجدول
+        </button>
+      </div>
+    </details>
+
+  </div><!-- /page-generator -->
+
+  <!-- ══════════════════════════════════════════════════════════
+       ARCHIVE PAGE
+       ══════════════════════════════════════════════════════════ -->
+  <div id="page-archive" class="page-container">
+    <div class="bg-white rounded-xl shadow-sm p-6 min-h-[60vh]">
+      <div class="flex justify-between items-center mb-5 pb-3 border-b">
+        <div>
+          <h2 class="text-xl font-bold">الجداول المحفوظة</h2>
+          <p class="text-xs text-slate-400 mt-0.5">استعرض الجداول الأسبوعية المحفوظة أو عدّل عليها</p>
+        </div>
+      </div>
+      <div id="archive-list" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+      <div id="no-archive" class="hidden flex flex-col items-center justify-center py-16 text-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#b5ccc8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-3" aria-hidden="true">
+          <rect x="2" y="3" width="20" height="5" rx="1"/>
+          <path d="M2 8h20v13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8z"/>
+          <path d="m9 13 2 2 4-4"/>
+        </svg>
+        <p class="text-slate-400 font-semibold">لا توجد جداول مؤرشفة بعد</p>
+        <p class="text-slate-300 text-xs mt-1">سيظهر هنا كل جدول تقوم بتوليده</p>
+      </div>
+    </div>
+  </div>
 
 </main>
 
-<!-- ============================================================
-     FOOTER
-     ============================================================ -->
-<footer class="bg-white border-t mt-auto py-4 text-center">
-    <div class="font-bold text-sm text-slate-500">جميع الحقوق محفوظة — Nalshahrani 2026</div>
+<!-- ─── FOOTER ────────────────────────────────────────────────── -->
+<footer class="bg-white border-t mt-auto py-3 text-center">
+  <div class="text-xs text-slate-400 font-semibold">وكالة التدريب — جامعة نايف العربية للعلوم الأمنية · 2026</div>
 </footer>
 
-<!-- ============================================================
-     LOADER OVERLAY
-     ============================================================ -->
+<!-- ─── LOADER ────────────────────────────────────────────────── -->
 <div id="loader" class="fixed inset-0 bg-white/95 z-[100] hidden flex-col items-center justify-center gap-4"
      role="status" aria-live="assertive" aria-label="جاري المعالجة">
-    <div class="relative w-14 h-14">
-        <div class="w-14 h-14 border-4 border-slate-100 rounded-full"></div>
-        <div class="absolute inset-0 w-14 h-14 border-4 border-transparent border-t-[#016564] rounded-full animate-spin"></div>
-    </div>
-    <div class="text-center">
-        <span id="loader-text" class="font-bold text-slate-600 block">جاري التوليد...</span>
-        <span class="text-xs text-slate-400 mt-1 block">يرجى الانتظار</span>
-    </div>
+  <div class="relative w-14 h-14">
+    <div class="w-14 h-14 border-4 border-slate-100 rounded-full"></div>
+    <div class="absolute inset-0 w-14 h-14 border-4 border-transparent border-t-[#016564] rounded-full animate-spin"></div>
+  </div>
+  <div class="text-center">
+    <span id="loader-text" class="font-bold text-slate-600 block">جاري التوليد...</span>
+    <span class="text-xs text-slate-400 mt-1 block">يرجى الانتظار</span>
+  </div>
 </div>
 
+<!-- ─── Smart Paste Modal (manual to avoid duplication) ──────── -->
+<div id="smart-paste-modal" class="fixed inset-0 bg-slate-900/50 z-[120] hidden items-center justify-center p-4" style="backdrop-filter:blur(4px)">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl border overflow-hidden">
+    <div class="flex items-center justify-between p-4 border-b">
+      <h3 class="font-bold" style="color:#2c6060">اللصق الذكي من LMS</h3>
+      <button type="button" onclick="closeSmartPasteModal()" class="text-slate-400 hover:text-red-500 text-2xl leading-none" aria-label="إغلاق">×</button>
+    </div>
+    <div class="p-4 space-y-3">
+      <p class="text-xs text-slate-500">الصق الصفوف المنسوخة من منصة LMS. سيقرأ النظام الأعمدة بالترتيب: اسم النشاط التدريبي | مكان التنفيذ | تاريخ البدء | تاريخ الانتهاء | الحالة | اسم منسق التدريب | القاعة | الطابق | الفترة</p>
+      <textarea id="smart-paste-text" class="form-input font-mono text-sm leading-7" style="min-height:260px" placeholder="الصق البيانات هنا..."></textarea>
+      <div class="flex flex-wrap gap-2 justify-between items-center">
+        <div class="text-xs text-slate-400">يدعم النسخ من الجداول، Tab، والفواصل.</div>
+        <div class="flex gap-2">
+          <button type="button" onclick="clearSmartPasteText()" class="btn-outline text-xs">مسح</button>
+          <button type="button" onclick="applySmartPaste('append')" class="btn-outline text-xs">إضافة للجدول الحالي</button>
+          <button type="button" onclick="applySmartPaste('replace')" class="btn-main text-xs">استبدال الجدول الحالي</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── APP LOGIC ─────────────────────────────────────────────── -->
 <script src="./src/app.js"></script>
+
+<script>
+/* ──────────────────────────────────────────────────────────────
+   NEW UI LAYER — Step management, live preview, course counter
+   ────────────────────────────────────────────────────────────── */
+
+const TEMPLATE_NAMES_AR = {
+  1:'العصري', 2:'الداكن الفاخر', 3:'الحيوي', 4:'iOS فائق الجودة',
+  12:'الشريط الجانبي', 13:'الخط الزمني ١', 14:'التنفيذي الورقي',
+  15:'الشبكة الكلاسيكية', 16:'لوحة التشغيل ١',
+  17:'الشبكة المتميزة', 18:'أفقي — يمين', 19:'الجدول الزمني',
+  20:'التنفيذي الفاخر', 21:'لوحة العمليات'
+};
+
+let _currentStep = 1;
+
+function showStep(n) {
+  _currentStep = n;
+  document.querySelectorAll('.phase-section').forEach((el, i) => {
+    el.classList.toggle('active', i + 1 === n);
+  });
+  document.querySelectorAll('.step-item').forEach((el, i) => {
+    el.classList.toggle('active', i + 1 === n);
+    el.classList.toggle('completed', i + 1 < n);
+  });
+  // Update connectors
+  [1,2,3].forEach(k => {
+    const c = document.getElementById('conn-'+k+'-'+(k+1));
+    if (c) c.classList.toggle('completed', k < n);
+  });
+  window.scrollTo({ top: 64, behavior: 'smooth' });
+
+  // Trigger live preview when entering step 3
+  if (n === 3) schedulePreviewUpdate();
+}
+
+function gotoGenerator() {
+  showPage('generator');
+  showStep(1);
+  document.getElementById('nav-generator').classList.add('active');
+  document.getElementById('nav-archive').classList.remove('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Override showPage to manage nav tabs
+const _origShowPage = showPage;
+showPage = function(pageId) {
+  _origShowPage(pageId);
+  document.getElementById('nav-generator').classList.toggle('active', pageId === 'generator');
+  document.getElementById('nav-archive').classList.toggle('active', pageId === 'archive');
+};
+
+/* ── Danger zone confirmation ── */
+function confirmClearData() {
+  if (confirm('هل تريد حذف جميع بيانات الجدول الحالي؟\n\nلا يمكن التراجع عن هذا الإجراء.')) {
+    clearCurrentData();
+    showStep(1);
+  }
+}
+
+/* ── Course Counter ── */
+function updateCourseCounter() {
+  const valid = (typeof rows !== 'undefined' ? rows : []).filter(r => r.n && String(r.n).trim());
+  const el = document.getElementById('course-counter-display');
+  const emptyHint = document.getElementById('empty-courses-hint');
+  if (!el) return;
+  const n = valid.length;
+  if (n === 0) {
+    el.textContent = 'أضف الدورات المجدولة لهذا الأسبوع';
+    if (emptyHint) emptyHint.style.display = '';
+  } else {
+    const imgs = Math.ceil(n / 4);
+    el.innerHTML = `<span style="color:var(--brand);font-weight:900">${n}</span> دورة — ${imgs === 1 ? 'صورة واحدة عند التصدير' : imgs + ' صور عند التصدير'}`;
+    if (emptyHint) emptyHint.style.display = 'none';
+  }
+}
+
+/* ── Live Preview ── */
+let _previewTimer = null;
+let _previewRendering = false;
+
+function schedulePreviewUpdate() {
+  clearTimeout(_previewTimer);
+  _previewTimer = setTimeout(renderLivePreview, 600);
+}
+
+async function renderLivePreview() {
+  if (_previewRendering) return;
+  const img = document.getElementById('live-preview-img');
+  const stateEl = document.getElementById('live-preview-state');
+  const spinner = document.getElementById('preview-spinner');
+  const emptyIcon = document.getElementById('preview-empty-icon');
+  const stateText = document.getElementById('preview-state-text');
+  if (!img || !stateEl) return;
+
+  const validRows = (typeof rows !== 'undefined' ? rows : []).filter(r => r.n && String(r.n).trim());
+  if (!validRows.length) {
+    img.style.display = 'none';
+    stateEl.style.display = 'flex';
+    if (spinner) spinner.style.display = 'none';
+    if (emptyIcon) emptyIcon.style.display = 'block';
+    if (stateText) stateText.textContent = 'أضف دورات لرؤية المعاينة';
+    return;
+  }
+
+  // Show spinner
+  img.style.display = 'none';
+  stateEl.style.display = 'flex';
+  if (spinner) spinner.style.display = 'block';
+  if (emptyIcon) emptyIcon.style.display = 'none';
+  if (stateText) stateText.textContent = 'جاري تحميل المعاينة...';
+
+  _previewRendering = true;
+  try {
+    await document.fonts.ready;
+    const previewList = validRows.slice(0, 4);
+    const stats = (typeof getStats !== 'undefined') ? getStats(validRows) : { t: validRows.length, n: 0, c: 0, i: 0 };
+
+    // Use small canvas to save memory
+    const W = 280, H = Math.round(280 * 7680 / 4320);
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d');
+
+    // Scale to fit our render dimensions
+    const renderW = (typeof T_W !== 'undefined') ? T_W : 4320;
+    const renderH = (typeof T_H !== 'undefined') ? T_H : 7680;
+    const sc = W / renderW;
+    ctx.scale(sc, sc);
+
+    if (typeof drawScreenCard !== 'undefined') {
+      drawScreenCard(ctx, previewList, stats, 1, 1, 0, (typeof logoImage !== 'undefined') ? logoImage : null);
+    }
+
+    img.src = cv.toDataURL('image/jpeg', 0.82);
+    cv.width = 0; cv.height = 0;
+
+    img.onload = () => {
+      img.style.display = 'block';
+      stateEl.style.display = 'none';
+      _previewRendering = false;
+    };
+  } catch(e) {
+    if (stateText) stateText.textContent = 'تعذّر تحميل المعاينة';
+    if (spinner) spinner.style.display = 'none';
+    _previewRendering = false;
+  }
+}
+
+/* ── Override selectTemplate to update preview & name ── */
+(function patchSelectTemplate() {
+  const _orig = selectTemplate;
+  selectTemplate = function(id) {
+    _orig(id);
+    // Update tpl-card selected state (new large cards)
+    document.querySelectorAll('.tpl-card').forEach(el => el.classList.remove('selected'));
+    const newCard = document.getElementById('tpl-' + id);
+    if (newCard) newCard.classList.add('selected');
+    // Also update legacy template-thumb if present
+    document.querySelectorAll('.template-thumb').forEach(el => el.classList.remove('selected'));
+    // Update name badge
+    const nameEl = document.getElementById('selected-tpl-name');
+    if (nameEl) nameEl.textContent = TEMPLATE_NAMES_AR[id] || 'قالب ' + id;
+    // Update aria-checked
+    document.querySelectorAll('.tpl-card').forEach(el => el.setAttribute('aria-checked', 'false'));
+    if (newCard) newCard.setAttribute('aria-checked', 'true');
+    // Schedule preview
+    schedulePreviewUpdate();
+  };
+})();
+
+/* ── Patch addRow/delRow to update counter ── */
+(function patchRowFunctions() {
+  const _origAdd = addRow;
+  addRow = function(d) {
+    _origAdd(d);
+    updateCourseCounter();
+    schedulePreviewUpdate();
+  };
+
+  const _origDel = delRow;
+  delRow = function(id) {
+    _origDel(id);
+    updateCourseCounter();
+    schedulePreviewUpdate();
+  };
+})();
+
+/* ── Keyboard support for tpl-cards ── */
+document.querySelectorAll('.tpl-card').forEach(card => {
+  card.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      card.click();
+    }
+  });
+});
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', () => {
+  updateCourseCounter();
+  const emptyHint = document.getElementById('empty-courses-hint');
+  if (emptyHint && typeof rows !== 'undefined' && rows.length > 0) {
+    emptyHint.style.display = 'none';
+  }
+});
+</script>
 </body>
 </html>
