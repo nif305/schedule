@@ -1,7 +1,7 @@
 ﻿// --- 1. Setup & Helpers ---
         let rows = [];
         let currentTemplate = 1;
-        const ALLOWED_TEMPLATES = new Set([1, 2, 3, 4, 16, 17, 18, 19, 20, 21]);
+        const ALLOWED_TEMPLATES = new Set([1, 2, 3, 4, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]);
         let logoImage = null; 
         let darkLogoImage = null;
         let lastBlob = null; 
@@ -853,9 +853,9 @@
         //   • قالب iOS HD (4) مرسوم على 6480×11520 (×3) → بلا تحجيم.
         const SCREEN_BASE_W = 2160, SCREEN_BASE_H = 3840;
         function getScreenRender() {
-            if (currentTemplate === 4)  return { w: 6480, h: 11520, ds: 1 }; // iOS: draws natively at 6480×11520
-            if ([16,17,18,19,20,21].includes(currentTemplate)) return { w: 4320, h: 7680, ds: 1 }; // Pro: draw at 4320×7680
-            return { w: 4320, h: 7680, ds: 2 }; // Legacy (1,2,3): authored at 2160×3840, scale×2 to 8K
+            if (currentTemplate === 4)  return { w: 6480, h: 11520, ds: 1 };
+            if ([16,17,18,19,20,21,22,23,24,25].includes(currentTemplate)) return { w: 4320, h: 7680, ds: 1 };
+            return { w: 4320, h: 7680, ds: 2 };
         }
         async function generateScreenZipBlob(valid, week) {
             const stats = getStats(valid);
@@ -1256,6 +1256,10 @@
             if (currentTemplate === 19) { drawRef19ScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
             if (currentTemplate === 20) { drawRef20ScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
             if (currentTemplate === 21) { drawRef21ScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
+            if (currentTemplate === 22) { drawRef22ScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
+            if (currentTemplate === 23) { drawRef23ScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
+            if (currentTemplate === 24) { drawRef24ScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
+            if (currentTemplate === 25) { drawRef25ScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
             const W = 2160, H = 3840;
             drawBackground(ctx, W, H);
 
@@ -2959,6 +2963,353 @@
             ctx.fillText(`${c.s||'—'}  ←  ${c.e||'—'}`, cX, cy+dtFs);
             cy += Math.round(dtFs*1.6) + chGap;
             nChips32(ctx, c, cntX, cy, cntW, chH);
+        }
+
+        // ==========================================================
+        // TEMPLATES 22-25 — مرجعية من الصور المقدمة
+        // chip موحّد في الجميع: صف1=(الطابق+القاعة) صف2=(الفترة+الحالة+مكان التنفيذ)
+        // ==========================================================
+
+        // ── نظام الـ chips الموحّد (2+3) لكل القوالب الجديدة ──────
+        function nChips23(ctx, c, x, y, w, h) {
+            const hideFloor = shouldHideFloorValue(c.f);
+            // صف 1: الطابق+القاعة  |  إذا خارجية: القاعة وحدها (مُوسَّعة)
+            const row1 = hideFloor
+                ? [['القاعة', c.r, 3]]
+                : [['الطابق', c.f, 4], ['القاعة', c.r, 3]];
+            // صف 2: الفترة + الحالة + مكان التنفيذ
+            const row2 = [['الفترة', c.p, 1], ['الحالة', c.st, 2], ['مكان التنفيذ', c.loc, 0]];
+
+            const ROW_MAX = 530;
+            const cGap = Math.min(h * 0.065, 84);
+            const rH = Math.min((h - cGap) / 2, ROW_MAX);
+            const blockH = rH*2 + cGap;
+            const y0 = y + (h - blockH) / 2;
+            const gap = w * 0.016;
+
+            const bW1 = row1.length === 1 ? w * 0.55 : (w - gap) / 2;
+            const x1Start = row1.length === 1 ? x + (w - bW1)/2 : x;
+            const bW2 = (w - gap*2) / 3;
+
+            const icS = Math.min(rH*0.148, 78);
+            const vFs = Math.min(rH*0.210, 108);
+            const lFs = Math.min(rH*0.108, 50);
+
+            const drawRow23 = (arr, bWW, ry, startX) => arr.forEach((it, i) => {
+                const bx = startX + i*(bWW+gap);
+                ctx.fillStyle = TC.soft; drawRoundedRect(ctx,bx,ry,bWW,rH,Math.min(22,rH*0.12));
+                ctx.strokeStyle = TC.line; ctx.lineWidth = 2.5; ctx.strokeRect(bx,ry,bWW,rH);
+                ctx.fillStyle = TC.gold; ctx.fillRect(bx,ry,bWW,Math.max(4,rH*0.028));
+                tChipIcon(ctx, it[2], bx+bWW/2, ry+rH*0.26, icS);
+                ctx.fillStyle = TC.ink; ctx.textAlign='center';
+                const v = String(it[1]||'—'); let vf = vFs;
+                ctx.font = `600 ${vf}px Cairo`;
+                while(ctx.measureText(v).width > bWW*0.86 && vf > 28){ vf -= 3; ctx.font = `600 ${vf}px Cairo`; }
+                let vt = v;
+                while(ctx.measureText(vt).width > bWW*0.86 && vt.length > 0) vt = vt.slice(0,-1);
+                if(vt !== v) vt += '…';
+                ctx.fillText(vt, bx+bWW/2, ry+rH*0.61);
+                ctx.fillStyle = TC.muted; ctx.font = `400 ${lFs}px Cairo`;
+                ctx.fillText(it[0], bx+bWW/2, ry+rH*0.83);
+            });
+            drawRow23(row1, bW1, y0, x1Start);
+            drawRow23(row2, bW2, y0+rH+cGap, x);
+        }
+
+        // ── مساعد: رسم لوحة المنسق (يمين أو يسار) ───────────────
+        // panelSide: 'right' | 'left'
+        function drawCoPanel(ctx, c, x, y, w, h, PNL, idx, panelSide) {
+            const isRight = panelSide === 'right';
+            const pX = isRight ? x+w-PNL : x;
+            const pCX = pX + PNL/2;
+            const pPad = Math.round(PNL * 0.07);
+
+            // رسم الشريط (مقيَّد بزوايا البطاقة)
+            ctx.save();
+            if(isRight){
+                ctx.beginPath(); ctx.moveTo(pX,y); ctx.lineTo(x+w-28,y); ctx.arcTo(x+w,y,x+w,y+28,28);
+                ctx.lineTo(x+w,y+h-28); ctx.arcTo(x+w,y+h,x+w-28,y+h,28); ctx.lineTo(pX,y+h); ctx.closePath(); ctx.clip();
+            } else {
+                ctx.beginPath(); ctx.moveTo(x+28,y); ctx.arcTo(x,y,x,y+28,28); ctx.lineTo(x,y+h-28);
+                ctx.arcTo(x,y+h,x+28,y+h,28); ctx.lineTo(pX+PNL,y+h); ctx.lineTo(pX+PNL,y); ctx.closePath(); ctx.clip();
+            }
+            const gP = ctx.createLinearGradient(pX,y,pX+PNL,y+h); gP.addColorStop(0,TC.green); gP.addColorStop(1,TC.greenD);
+            ctx.fillStyle = gP; ctx.fillRect(pX,y,PNL,h); ctx.restore();
+            // خط فاصل داخلي
+            const sepX = isRight ? x+w-PNL-6 : pX+PNL;
+            ctx.fillStyle=TC.gold; ctx.fillRect(sepX,y+20,6,h-40);
+
+            // رقم الدورة (baseline محسوب لتفادي القطع)
+            const pNumFs = Math.min(Math.round(h*0.19), Math.round(PNL*0.62));
+            const pNumBL = y + pPad + Math.round(pNumFs*0.82);
+            ctx.fillStyle=TC.gold; ctx.textAlign='center'; ctx.font=`bold ${pNumFs}px Cairo`;
+            ctx.fillText(String(idx), pCX, pNumBL);
+
+            // خط فاصل 1
+            const sep1Y = pNumBL + Math.round(pNumFs*0.22) + 30;
+            ctx.strokeStyle='rgba(199,176,140,0.50)'; ctx.lineWidth=4;
+            ctx.beginPath(); ctx.moveTo(pX+pPad,sep1Y); ctx.lineTo(pX+PNL-pPad,sep1Y); ctx.stroke();
+
+            // أيقونة الشخص
+            const icS = Math.min(Math.round(h*0.048),62);
+            const rem = (y+h) - sep1Y;
+            const icCY = sep1Y + Math.round(rem*0.32) + icS*0.50;
+            ctx.save(); ctx.strokeStyle='rgba(199,176,140,0.82)'; ctx.lineWidth=Math.max(6,icS*0.12); ctx.lineCap='round';
+            ctx.beginPath(); ctx.arc(pCX,icCY-icS*0.55,icS*0.44,0,Math.PI*2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(pCX,icCY+icS*0.20,icS*0.80,Math.PI,Math.PI*2,true); ctx.stroke(); ctx.restore();
+
+            // تسمية المنسق
+            const coLblY = icCY + icS*0.75 + 38;
+            const coLblFs = Math.round(h*0.036);
+            ctx.fillStyle='rgba(249,249,249,0.60)'; ctx.textAlign='center'; ctx.font=`normal ${coLblFs}px Cairo`;
+            ctx.fillText('اسم منسق التدريب:', pCX, coLblY);
+
+            // خط فاصل 2
+            const sep2Y = coLblY + coLblFs*0.40 + 26;
+            ctx.strokeStyle='rgba(199,176,140,0.44)'; ctx.lineWidth=2.5;
+            ctx.beginPath(); ctx.moveTo(pX+pPad,sep2Y); ctx.lineTo(pX+PNL-pPad,sep2Y); ctx.stroke();
+
+            // اسم المنسق (auto-shrink)
+            const cnAvailW = PNL - pPad*2.2;
+            const cnFsMax = Math.round(h*0.072);
+            ctx.font=`bold ${cnFsMax}px Cairo`;
+            const cnLines = wrapTextSimple(ctx,c.sp||'—',cnAvailW).slice(0,2);
+            const wideL = Math.max(...cnLines.map(l=>ctx.measureText(l).width));
+            const cnFs = wideL > cnAvailW ? Math.floor(cnFsMax*cnAvailW/wideL*0.94) : cnFsMax;
+            ctx.fillStyle='#FFFFFF'; ctx.font=`bold ${cnFs}px Cairo`;
+            const cnY = sep2Y + cnFs*0.95 + 14;
+            cnLines.forEach((l,li) => ctx.fillText(l, pCX, cnY+li*cnFs*1.32));
+
+            // معينة ذهبية
+            const dmY = y+h - Math.round(h*0.055);
+            ctx.fillStyle=TC.gold; ctx.save(); ctx.translate(pCX,dmY); ctx.rotate(Math.PI/4);
+            ctx.fillRect(-12,-12,24,24); ctx.restore();
+        }
+
+        // ── مساعد: محتوى البطاقة (عنوان+تاريخ+chips) ─────────────
+        function drawCardBody(ctx, c, cx, x, y, w, h) {
+            const ttlFs = Math.min(Math.round(h*0.088),145);
+            const dtFs  = Math.min(Math.round(h*0.044),72);
+            const chH   = Math.round(h*0.420);
+            const dtGap = Math.round(h*0.030);
+            const chGap = Math.round(h*0.038);
+            const PAD   = Math.round(h*0.030);
+
+            const tRes = wrapTextSmart(ctx,c.n,w-PAD*2,2,ttlFs);
+            const ttlH = tRes.lines.length*tRes.lineHeight;
+            const total = ttlH+dtGap+dtFs*1.6+chGap+chH;
+            let cy = y+(h-total)/2;
+
+            ctx.fillStyle=TC.ink; ctx.textAlign='center'; ctx.font=`bold ${tRes.fontSize}px Cairo`;
+            tRes.lines.forEach((l,i)=>ctx.fillText(l,cx,cy+tRes.fontSize+i*tRes.lineHeight));
+            cy += ttlH+dtGap;
+            ctx.fillStyle='#802f2d'; ctx.font=`bold ${dtFs}px Cairo`;
+            ctx.fillText(`${c.s||'—'}  ←  ${c.e||'—'}`, cx, cy+dtFs);
+            cy += Math.round(dtFs*1.6)+chGap;
+            nChips23(ctx, c, x+PAD, cy, w-PAD*2, chH);
+        }
+
+        // ─────────────────────────────────────────────────────────
+        // N11 (T22) — الشريط الأيمن المرجعي + watermark يسار
+        // ─────────────────────────────────────────────────────────
+        function drawRef22ScreenCard(ctx, list, stats, pn, tp, si, logo) {
+            tBg(ctx);
+            let y = tHdr(ctx,logo,pn,tp)+55;
+            y = tSts(ctx,stats,y)+65;
+            y = tIntr(ctx,y)+30;
+            const n=list.length||1, gap=50;
+            const cH=tCardH(y,n,gap);
+            for(let i=0;i<n;i++){if(list[i])t22(ctx,list[i],T_MX,y,T_W-T_MX*2,cH,si+i+1);y+=cH+gap;}
+            tFtr(ctx);
+        }
+        function t22(ctx, c, x, y, w, h, idx) {
+            const PNL = Math.round(w*0.218);
+            const PAD = Math.round(h*0.030);
+            // Card
+            tSh(ctx,50,16); ctx.fillStyle=TC.bgCard; drawRoundedRect(ctx,x,y,w,h,28); tCl(ctx);
+            ctx.strokeStyle=TC.line; ctx.lineWidth=3; ctx.strokeRect(x,y,w,h);
+            // Ghost watermark (left of body, very transparent)
+            const wmFs=Math.min(Math.round(h*0.44),540);
+            ctx.save(); ctx.globalAlpha=0.038; ctx.fillStyle=TC.gold;
+            ctx.textAlign='left'; ctx.font=`bold ${wmFs}px Cairo`;
+            ctx.fillText(String(idx), x+PAD*1.5, y+h*0.74); ctx.restore();
+            // Right coordinator panel
+            drawCoPanel(ctx,c,x,y,w,h,PNL,idx,'right');
+            // Body (left of panel)
+            const bW=w-PNL-PAD;
+            drawCardBody(ctx,c,x+bW/2,x,y,bW,h);
+        }
+
+        // ─────────────────────────────────────────────────────────
+        // N12 (T23) — خط زمني يمين (RTL anchor)
+        // ─────────────────────────────────────────────────────────
+        function drawRef23ScreenCard(ctx, list, stats, pn, tp, si, logo) {
+            tBg(ctx);
+            let y = tHdr(ctx,logo,pn,tp)+55;
+            y = tSts(ctx,stats,y)+65;
+            y = tIntr(ctx,y)+30;
+            const n=list.length||1, gap=62;
+            const tlX=T_W-T_MX-200;
+            const cW=tlX-T_MX-180; // مسافة مريحة بين الدوائر والبطاقات
+            const cH=tCardH(y,n,gap);
+            // خط الجدول الزمني
+            ctx.save(); ctx.strokeStyle=TC.gold; ctx.lineWidth=8; ctx.setLineDash([50,32]);
+            ctx.beginPath(); ctx.moveTo(tlX,y-30); ctx.lineTo(tlX,y+n*(cH+gap)-gap+30); ctx.stroke();
+            ctx.setLineDash([]); ctx.restore();
+            for(let i=0;i<n;i++){if(list[i])t23(ctx,list[i],T_MX,y+i*(cH+gap),cW,cH,si+i+1,tlX);}
+            tFtr(ctx);
+        }
+        function t23(ctx, c, x, y, w, h, idx, tlX) {
+            const mY=y+h/2;
+            const nodeR=Math.round(h*0.068);
+            // دائرة الجدول الزمني
+            tSh(ctx,22,10,'rgba(26,68,69,0.22)');
+            ctx.fillStyle=TC.green; ctx.beginPath(); ctx.arc(tlX,mY,nodeR,0,Math.PI*2); ctx.fill(); tCl(ctx);
+            ctx.strokeStyle=TC.gold; ctx.lineWidth=9; ctx.beginPath(); ctx.arc(tlX,mY,nodeR,0,Math.PI*2); ctx.stroke();
+            ctx.fillStyle='#FFFFFF'; ctx.textAlign='center'; ctx.font=`bold ${Math.round(nodeR*1.06)}px Cairo`;
+            ctx.fillText(String(idx),tlX,mY+nodeR*0.38);
+            // رابط إلى البطاقة
+            ctx.strokeStyle=TC.gold; ctx.lineWidth=4; ctx.setLineDash([18,12]);
+            ctx.beginPath(); ctx.moveTo(tlX-nodeR-2,mY); ctx.lineTo(x+w,mY); ctx.stroke(); ctx.setLineDash([]);
+            // البطاقة
+            tSh(ctx,48,14); ctx.fillStyle=TC.bgCard; drawRoundedRect(ctx,x,y,w,h,26); tCl(ctx);
+            ctx.strokeStyle=TC.line; ctx.lineWidth=3; ctx.strokeRect(x,y,w,h);
+            ctx.fillStyle=TC.gold; ctx.fillRect(x+w-8,y+20,8,h-40);
+            // شريط التاريخ أعلى (أخضر)
+            const DSH=Math.round(h*0.100);
+            ctx.save();
+            ctx.beginPath(); ctx.moveTo(x+26,y); ctx.lineTo(x+w-26,y); ctx.arcTo(x+w,y,x+w,y+26,26);
+            ctx.lineTo(x+w,y+DSH); ctx.lineTo(x,y+DSH); ctx.lineTo(x,y+26); ctx.arcTo(x,y,x+26,y,26); ctx.closePath(); ctx.clip();
+            const gD=ctx.createLinearGradient(x,y,x+w,y+DSH); gD.addColorStop(0,TC.greenD); gD.addColorStop(1,TC.green);
+            ctx.fillStyle=gD; ctx.fillRect(x,y,w,DSH); ctx.restore();
+            ctx.fillStyle=TC.gold; ctx.fillRect(x,y+DSH-5,w,5);
+            ctx.fillStyle=TC.gold; ctx.textAlign='center'; ctx.font=`bold ${Math.round(DSH*0.50)}px Cairo`;
+            ctx.fillText(`${c.s||'—'}  ←  ${c.e||'—'}`,x+w/2,y+DSH*0.70);
+            // شريط المنسق أسفل (أخضر)
+            const CSH=Math.round(h*0.095);
+            ctx.save();
+            ctx.beginPath(); ctx.moveTo(x,y+h-CSH); ctx.lineTo(x+w,y+h-CSH);
+            ctx.lineTo(x+w,y+h-26); ctx.arcTo(x+w,y+h,x+w-26,y+h,26); ctx.lineTo(x+26,y+h); ctx.arcTo(x,y+h,x,y+h-26,26); ctx.closePath(); ctx.clip();
+            ctx.fillStyle=TC.green; ctx.fillRect(x,y+h-CSH,w,CSH); ctx.restore();
+            ctx.fillStyle=TC.gold; ctx.fillRect(x,y+h-CSH,w,5);
+            ctx.fillStyle='#FFFFFF'; ctx.textAlign='center'; ctx.font=`bold ${Math.round(CSH*0.50)}px Cairo`;
+            ctx.fillText(`منسق التدريب:  ${c.sp||'—'}`,x+w/2,y+h-CSH*0.36);
+            // المنطقة الداخلية: عنوان + chips
+            const innerY=y+DSH, innerH=h-DSH-CSH;
+            const PAD=Math.round(innerH*0.04);
+            const ttlFs=Math.min(Math.round(innerH*0.124),148);
+            const chH=Math.round(innerH*0.510);
+            const chGap=Math.round(innerH*0.046);
+            const tRes=wrapTextSmart(ctx,c.n,w-PAD*4,2,ttlFs);
+            const ttlH=tRes.lines.length*tRes.lineHeight;
+            const total=ttlH+chGap+chH;
+            let cy=innerY+(innerH-total)/2;
+            ctx.fillStyle=TC.ink; ctx.textAlign='center'; ctx.font=`bold ${tRes.fontSize}px Cairo`;
+            tRes.lines.forEach((l,i)=>ctx.fillText(l,x+w/2,cy+tRes.fontSize+i*tRes.lineHeight));
+            cy+=ttlH+chGap;
+            nChips23(ctx,c,x+PAD*2,cy,w-PAD*4,chH);
+        }
+
+        // ─────────────────────────────────────────────────────────
+        // N13 (T24) — لوحة يسار + رقم "01" watermark يمين
+        // ─────────────────────────────────────────────────────────
+        function drawRef24ScreenCard(ctx, list, stats, pn, tp, si, logo) {
+            tBg(ctx);
+            let y = tHdr(ctx,logo,pn,tp)+55;
+            y = tSts(ctx,stats,y)+65;
+            y = tIntr(ctx,y)+30;
+            const n=list.length||1, gap=50;
+            const cH=tCardH(y,n,gap);
+            for(let i=0;i<n;i++){if(list[i])t24(ctx,list[i],T_MX,y,T_W-T_MX*2,cH,si+i+1);y+=cH+gap;}
+            tFtr(ctx);
+        }
+        function t24(ctx, c, x, y, w, h, idx) {
+            const PNL=Math.round(w*0.212);
+            const PAD=Math.round(h*0.030);
+            // البطاقة
+            tSh(ctx,46,14); ctx.fillStyle=TC.bgCard; drawRoundedRect(ctx,x,y,w,h,28); tCl(ctx);
+            ctx.fillStyle=TC.gold; ctx.fillRect(x,y,w,8);
+            ctx.fillStyle=TC.gold; ctx.fillRect(x+w-10,y+22,10,h-44);
+            ctx.strokeStyle=TC.line; ctx.lineWidth=3; ctx.strokeRect(x,y,w,h);
+            // Watermark "01" يمين (خلف المحتوى)
+            const wmFs=Math.min(Math.round(h*0.42),500);
+            ctx.save(); ctx.globalAlpha=0.040; ctx.fillStyle=TC.gold;
+            ctx.textAlign='right'; ctx.font=`bold ${wmFs}px Cairo`;
+            ctx.fillText(String(idx).padStart(2,'0'),x+w-PAD*2,y+h*0.74); ctx.restore();
+            // لوحة المنسق يسار
+            drawCoPanel(ctx,c,x,y,w,h,PNL,idx,'left');
+            // المحتوى
+            const cntX=x+PNL+PAD*2;
+            const cntW=w-PNL-PAD*3-10;
+            drawCardBody(ctx,c,cntX+cntW/2,cntX,y,cntW,h);
+        }
+
+        // ─────────────────────────────────────────────────────────
+        // N14 (T25) — شبكة 2×2 مع رأس أخضر داكن
+        // ─────────────────────────────────────────────────────────
+        function drawRef25ScreenCard(ctx, list, stats, pn, tp, si, logo) {
+            tBg(ctx);
+            let y = tHdr(ctx,logo,pn,tp)+55;
+            y = tSts(ctx,stats,y)+65;
+            y = tIntr(ctx,y)+30;
+            const cols=2, rows=2, gap=65, mX=T_MX;
+            const cW=(T_W-mX*2-gap)/cols;
+            const cH=Math.max(800, Math.floor((T_H-y-240-gap)/rows));
+            for(let i=0;i<Math.min(list.length,4);i++){
+                if(!list[i]) continue;
+                const col=i%cols, row=Math.floor(i/cols);
+                t25(ctx,list[i],mX+col*(cW+gap),y+row*(cH+gap),cW,cH,si+i+1);
+            }
+            tFtr(ctx);
+        }
+        function t25(ctx, c, x, y, w, h, idx) {
+            const HDR=Math.round(h*0.178);
+            const BOT=Math.round(h*0.088);
+            const PAD=Math.round(h*0.018);
+            // بطاقة
+            tSh(ctx,48,14); ctx.fillStyle=TC.bgCard; drawRoundedRect(ctx,x,y,w,h,26); tCl(ctx);
+            ctx.strokeStyle=TC.line; ctx.lineWidth=3; ctx.strokeRect(x,y,w,h);
+            // رأس أخضر داكن
+            ctx.save();
+            ctx.beginPath(); ctx.moveTo(x+26,y); ctx.lineTo(x+w-26,y); ctx.arcTo(x+w,y,x+w,y+26,26);
+            ctx.lineTo(x+w,y+HDR); ctx.lineTo(x,y+HDR); ctx.lineTo(x,y+26); ctx.arcTo(x,y,x+26,y,26); ctx.closePath(); ctx.clip();
+            const gH25=ctx.createLinearGradient(x,y,x+w,y+HDR); gH25.addColorStop(0,TC.greenD); gH25.addColorStop(1,TC.green);
+            ctx.fillStyle=gH25; ctx.fillRect(x,y,w,HDR); ctx.restore();
+            ctx.fillStyle=TC.gold; ctx.fillRect(x,y+HDR-5,w,5);
+            // شارة الرقم (يمين الرأس)
+            const numR=Math.round(HDR*0.34);
+            const numX=x+w-numR-PAD*2, numY=y+HDR/2;
+            ctx.fillStyle='rgba(199,176,140,0.18)'; ctx.beginPath(); ctx.arc(numX,numY,numR,0,Math.PI*2); ctx.fill();
+            ctx.strokeStyle=TC.gold; ctx.lineWidth=5; ctx.beginPath(); ctx.arc(numX,numY,numR,0,Math.PI*2); ctx.stroke();
+            ctx.fillStyle=TC.gold; ctx.textAlign='center'; ctx.font=`bold ${Math.round(numR*0.90)}px Cairo`;
+            ctx.fillText(String(idx),numX,numY+numR*0.35);
+            // عنوان الدورة في الرأس
+            const tAvailW=w-numR*2.2-PAD*4;
+            const tFs25=Math.round(HDR*0.26);
+            const tRes25=wrapTextSmart(ctx,c.n,tAvailW,2,tFs25);
+            ctx.fillStyle='#FFFFFF'; ctx.textAlign='right'; ctx.font=`bold ${tRes25.fontSize}px Cairo`;
+            let ty25=y+(HDR-tRes25.lines.length*tRes25.lineHeight)/2+tRes25.fontSize*0.88;
+            tRes25.lines.forEach(l=>{ctx.fillText(l,x+tAvailW+PAD*3,ty25);ty25+=tRes25.lineHeight;});
+            // التاريخ (عنابي بلا إطار)
+            const innerH=h-HDR-BOT;
+            const dtFs25=Math.min(Math.round(innerH*0.085),76);
+            const dtBH=Math.round(innerH*0.14);
+            ctx.fillStyle='#802f2d'; ctx.textAlign='center'; ctx.font=`bold ${dtFs25}px Cairo`;
+            ctx.fillText(`${c.s||'—'}  ←  ${c.e||'—'}`,x+w/2,y+HDR+dtBH*0.68);
+            // chips (تملأ الباقي)
+            const chipsTop=y+HDR+dtBH+PAD;
+            const chipsH=(y+h-BOT-PAD)-chipsTop;
+            nChips23(ctx,c,x+PAD*2,chipsTop,w-PAD*4,chipsH);
+            // شريط المنسق أسفل
+            ctx.save();
+            ctx.beginPath(); ctx.moveTo(x,y+h-BOT); ctx.lineTo(x+w,y+h-BOT);
+            ctx.lineTo(x+w,y+h-26); ctx.arcTo(x+w,y+h,x+w-26,y+h,26); ctx.lineTo(x+26,y+h); ctx.arcTo(x,y+h,x,y+h-26,26); ctx.closePath(); ctx.clip();
+            const gB25=ctx.createLinearGradient(x,y+h-BOT,x+w,y+h); gB25.addColorStop(0,TC.greenD); gB25.addColorStop(1,TC.green);
+            ctx.fillStyle=gB25; ctx.fillRect(x,y+h-BOT,w,BOT); ctx.restore();
+            ctx.fillStyle=TC.gold; ctx.fillRect(x,y+h-BOT,w,5);
+            ctx.fillStyle='#FFFFFF'; ctx.textAlign='center';
+            ctx.font=`bold ${Math.round(BOT*0.46)}px Cairo`;
+            ctx.fillText(`منسق التدريب:  ${c.sp||'—'}`,x+w/2,y+h-BOT/2+BOT*0.16);
         }
 
         // ==========================================================
