@@ -1,7 +1,7 @@
 ﻿// --- 1. Setup & Helpers ---
         let rows = [];
         let currentTemplate = 1;
-        const ALLOWED_TEMPLATES = new Set([1, 2, 3, 4, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]);
+        const ALLOWED_TEMPLATES = new Set([1, 2, 3, 4, 16, 17, 18, 19, 20, 21]);
         let logoImage = null; 
         let darkLogoImage = null;
         let lastBlob = null; 
@@ -837,9 +837,9 @@
         //   • قالب iOS HD (4) مرسوم على 6480×11520 (×3) → بلا تحجيم.
         const SCREEN_BASE_W = 2160, SCREEN_BASE_H = 3840;
         function getScreenRender() {
-            if (currentTemplate === 4) return { w: 6480, h: 11520, ds: 1 };
-            if ([12,13,14,15,16,17,18,19,20,21].includes(currentTemplate)) return { w: 4320, h: 7680, ds: 1 };
-            return { w: 4320, h: 7680, ds: 2 }; // legacy authored at 2160 → ×2 to reach 8K
+            if (currentTemplate === 4)  return { w: 6480, h: 11520, ds: 1 }; // iOS: draws natively at 6480×11520
+            if ([16,17,18,19,20,21].includes(currentTemplate)) return { w: 4320, h: 7680, ds: 1 }; // Pro: draw at 4320×7680
+            return { w: 4320, h: 7680, ds: 2 }; // Legacy (1,2,3): authored at 2160×3840, scale×2 to 8K
         }
         async function generateScreenZipBlob(valid, week) {
             const stats = getStats(valid);
@@ -1227,10 +1227,7 @@
         // ---------------------------------------------------------
         function drawScreenCard(ctx, list, stats, pn, tp, si, logo) {
             if (currentTemplate === 4)  { drawIosHDScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
-            if (currentTemplate === 12) { drawReferenceOneScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
-            if (currentTemplate === 13) { drawReferenceTwoScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
-            if (currentTemplate === 14) { drawReferenceThreeScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
-            if (currentTemplate === 15) { drawReferenceFourScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
+            // Templates 12-15 removed from UI — routing kept for archive compatibility but not accessible
             if (currentTemplate === 16) { drawReferenceFiveScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
             if (currentTemplate === 17) { drawRef17ScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
             if (currentTemplate === 18) { drawRef18ScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
@@ -2583,10 +2580,10 @@
 
             // ── البطاقة الأساسية ──────────────────────────────────
             tSh(ctx,50,16); ctx.fillStyle=TC.bgCard; drawRoundedRect(ctx,x,y,w,h,28); tCl(ctx);
-            // رقم watermark خفيف يسار
-            ctx.save(); ctx.globalAlpha=0.036; ctx.fillStyle=TC.green;
-            ctx.textAlign='left'; ctx.font=`bold ${Math.round(h*0.60)}px Cairo`;
-            ctx.fillText(String(idx), x+PAD, y+h*0.82); ctx.restore();
+            // رقم watermark — في المنطقة العليا بعيداً عن الـ chips
+            ctx.save(); ctx.globalAlpha=0.022; ctx.fillStyle=TC.green;
+            ctx.textAlign='left'; ctx.font=`bold ${Math.round(h*0.40)}px Cairo`;
+            ctx.fillText(String(idx), x+PAD*1.5, y+h*0.38); ctx.restore();
             ctx.strokeStyle=TC.line; ctx.lineWidth=3; ctx.strokeRect(x,y,w,h);
 
             // ── الشريط الأخضر الأيمن ─────────────────────────────
@@ -2744,10 +2741,10 @@
             ctx.fillStyle=TC.gold; ctx.fillRect(x,y,w,8);
             ctx.strokeStyle=TC.line; ctx.lineWidth=3; ctx.strokeRect(x,y,w,h);
 
-            // رقم watermark يسار (خفيف جداً)
-            ctx.save(); ctx.globalAlpha=0.038; ctx.fillStyle=TC.gold;
-            ctx.textAlign='left'; ctx.font=`bold ${Math.round(h*0.42)}px Cairo`;
-            ctx.fillText(String(idx), x+PAD*2, y+h-PAD*2); ctx.restore();
+            // رقم watermark يسار — في المنطقة العليا فوق الـ chips
+            ctx.save(); ctx.globalAlpha=0.020; ctx.fillStyle=TC.gold;
+            ctx.textAlign='left'; ctx.font=`bold ${Math.round(h*0.35)}px Cairo`;
+            ctx.fillText(String(idx), x+PAD*2, y+h*0.38); ctx.restore();
 
             // ── لوحة المنسق يمين ──────────────────────────────────
             ctx.save();
@@ -2816,10 +2813,10 @@
             ctx.fillStyle=TC.gold; ctx.fillRect(x+w-10,y+22,10,h-44);
             ctx.strokeStyle=TC.line; ctx.lineWidth=3; ctx.strokeRect(x,y,w,h);
 
-            // رقم watermark يمين (خفيف — "01" أسلوب)
-            ctx.save(); ctx.globalAlpha=0.038; ctx.fillStyle=TC.gold;
-            ctx.textAlign='right'; ctx.font=`bold ${Math.round(h*0.42)}px Cairo`;
-            ctx.fillText(String(idx).padStart(2,'0'), x+w-PAD*2, y+h-PAD*2); ctx.restore();
+            // رقم watermark يمين — في المنطقة العليا فوق الـ chips
+            ctx.save(); ctx.globalAlpha=0.020; ctx.fillStyle=TC.gold;
+            ctx.textAlign='right'; ctx.font=`bold ${Math.round(h*0.35)}px Cairo`;
+            ctx.fillText(String(idx).padStart(2,'0'), x+w-PAD*2, y+h*0.38); ctx.restore();
 
             // ── لوحة المنسق يسار ──────────────────────────────────
             const coX=x+PAD, coY=y+PAD, coH=h-PAD*2;

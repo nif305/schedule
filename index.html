@@ -684,31 +684,7 @@
                 <div class="tpl-name">iOS فائق</div>
               </div>
 
-              <!-- REF 1 → الشريط الجانبي -->
-              <div onclick="selectTemplate(12)" class="tpl-card" id="tpl-12" role="radio" aria-checked="false" tabindex="0" aria-label="قالب الشريط الجانبي">
-                <div class="tpl-thumb-area"><div class="w-full h-full bg-[#f8f4ea] flex items-center justify-center text-[#0d3d3c] text-[7px] font-black border-t-[6px] border-[#0d3d3c]">جانبي</div></div>
-                <div class="tpl-name">الشريط الجانبي</div>
-              </div>
-
-              <!-- REF 2 → الخط الزمني (قديم) -->
-              <div onclick="selectTemplate(13)" class="tpl-card" id="tpl-13" role="radio" aria-checked="false" tabindex="0" aria-label="قالب الخط الزمني القديم">
-                <div class="tpl-thumb-area"><div class="w-full h-full bg-[#fbfaf6] flex items-center justify-center text-[#d0b284] text-[7px] font-black border-b-[6px] border-[#0d3d3c]">زمني</div></div>
-                <div class="tpl-name">الخط الزمني ١</div>
-              </div>
-
-              <!-- REF 3 → التنفيذي الورقي -->
-              <div onclick="selectTemplate(14)" class="tpl-card" id="tpl-14" role="radio" aria-checked="false" tabindex="0" aria-label="قالب التنفيذي الورقي">
-                <div class="tpl-thumb-area"><div class="w-full h-full bg-[#f7f3e9] flex items-center justify-center text-[#0d3d3c] text-[7px] font-black border-r-[6px] border-[#d0b284]">ورقي</div></div>
-                <div class="tpl-name">التنفيذي الورقي</div>
-              </div>
-
-              <!-- REF 4 → الشبكة الكلاسيكية -->
-              <div onclick="selectTemplate(15)" class="tpl-card" id="tpl-15" role="radio" aria-checked="false" tabindex="0" aria-label="قالب الشبكة الكلاسيكية">
-                <div class="tpl-thumb-area" style="background:#f2ede2"><div class="h-[10px] w-full" style="background:linear-gradient(90deg,#0d3d3b,#07282a)"></div><div class="flex-1 flex items-center justify-center gap-1 py-2"><span class="text-[7px] font-black" style="color:#0d3d3c">شبكة</span></div></div>
-                <div class="tpl-name">الشبكة الكلاسيكية</div>
-              </div>
-
-              <!-- REF 5 → لوحة التشغيل القديمة -->
+              <!-- REF 5 → لوحة التشغيل -->
               <div onclick="selectTemplate(16)" class="tpl-card" id="tpl-16" role="radio" aria-checked="false" tabindex="0" aria-label="قالب لوحة التشغيل">
                 <div class="tpl-thumb-area" style="background:#f9f5ed;display:flex"><div style="flex:1;display:flex;align-items:center;justify-content:center"><span class="text-[7px] font-black" style="color:#0d3d3c">لوحة</span></div><div style="width:10px;background:#0d3d3b"></div></div>
                 <div class="tpl-name">لوحة التشغيل ١</div>
@@ -1006,8 +982,7 @@
 
 const TEMPLATE_NAMES_AR = {
   1:'العصري', 2:'الداكن الفاخر', 3:'الحيوي', 4:'iOS فائق الجودة',
-  12:'الشريط الجانبي', 13:'الخط الزمني ١', 14:'التنفيذي الورقي',
-  15:'الشبكة الكلاسيكية', 16:'لوحة التشغيل ١',
+  16:'لوحة التشغيل',
   17:'الشبكة المتميزة', 18:'أفقي — يمين', 19:'الجدول الزمني',
   20:'التنفيذي الفاخر', 21:'لوحة العمليات'
 };
@@ -1116,16 +1091,16 @@ async function renderLivePreview() {
     const previewList = validRows.slice(0, 4);
     const stats = (typeof getStats !== 'undefined') ? getStats(validRows) : { t: validRows.length, n: 0, c: 0, i: 0 };
 
-    // Use small canvas to save memory
-    const W = 280, H = Math.round(280 * 7680 / 4320);
+    // اعتمد على getScreenRender() للحصول على أبعاد الرسم الفعلية
+    // ds=2 → يُرسم على 2160×3840 | ds=1 → يُرسم على r.w (4320 أو 6480)
+    const r = (typeof getScreenRender !== 'undefined') ? getScreenRender() : { w: 4320, h: 7680, ds: 1 };
+    const drawW = Math.round(r.w / r.ds);
+    const drawH = Math.round(r.h / r.ds);
+    const W = 280, H = Math.round(W * drawH / drawW);
     const cv = document.createElement('canvas');
     cv.width = W; cv.height = H;
     const ctx = cv.getContext('2d');
-
-    // Scale to fit our render dimensions
-    const renderW = (typeof T_W !== 'undefined') ? T_W : 4320;
-    const renderH = (typeof T_H !== 'undefined') ? T_H : 7680;
-    const sc = W / renderW;
+    const sc = W / drawW;
     ctx.scale(sc, sc);
 
     if (typeof drawScreenCard !== 'undefined') {
