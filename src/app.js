@@ -1877,9 +1877,7 @@
             ctx.fillStyle=TC.gold; ctx.fillRect((T_W-760)/2,y,760,7); y+=60;
             ctx.fillStyle=TC.green; ctx.textAlign='center'; ctx.font='bold 220px Cairo';
             ctx.fillText('جدول الدورات التدريبية',T_W/2,y+212); y+=278;
-            ctx.fillStyle=TC.gold; ctx.fillRect((T_W-760)/2,y,760,7); y+=22;
-            ctx.fillStyle=TC.muted; ctx.font='normal 62px Cairo';
-            ctx.fillText(`صفحة ${pn} من ${tp}`,T_W/2,y+72); y+=110;
+            ctx.fillStyle=TC.gold; ctx.fillRect((T_W-760)/2,y,760,7); y+=52;
             return y;
         }
 
@@ -2411,11 +2409,15 @@
                 ctx.strokeStyle = TC.goldL; ctx.lineWidth = 3; ctx.strokeRect(bx,y,bW,h);
                 ctx.fillStyle = TC.gold; ctx.fillRect(bx,y,bW,7);
                 tChipIcon(ctx, it[2], bx+bW/2, y+h*0.30, icS);
-                ctx.fillStyle = TC.ink; ctx.textAlign = 'center'; ctx.font = `bold ${vFs}px Cairo`;
-                let v = String(it[1]||'—');
-                while(ctx.measureText(v).width > bW-32 && v.length > 0) v = v.slice(0,-1);
-                if(v !== String(it[1]||'—')) v += '...';
-                ctx.fillText(v, bx+bW/2, y+h*0.65);
+                // القيمة: قلّص الخط ليتسع النص كاملاً قبل اللجوء للقص
+                ctx.fillStyle = TC.ink; ctx.textAlign = 'center';
+                const v = String(it[1]||'—'); let vf = vFs;
+                ctx.font = `bold ${vf}px Cairo`;
+                while(ctx.measureText(v).width > bW-28 && vf > 44){ vf -= 4; ctx.font = `bold ${vf}px Cairo`; }
+                let vt = v;
+                while(ctx.measureText(vt).width > bW-28 && vt.length > 0) vt = vt.slice(0,-1);
+                if(vt !== v) vt += '…';
+                ctx.fillText(vt, bx+bW/2, y+h*0.65);
                 ctx.fillStyle = TC.muted; ctx.font = `normal ${lFs}px Cairo`;
                 ctx.fillText(it[0], bx+bW/2, y+h*0.87);
             });
@@ -2435,16 +2437,58 @@
                 ctx.strokeStyle = TC.goldL; ctx.lineWidth = 3; ctx.strokeRect(bx,ry,bWW,rH);
                 ctx.fillStyle = TC.gold; ctx.fillRect(bx,ry,bWW,7);
                 tChipIcon(ctx, it[2], bx+bWW/2, ry+rH*0.30, icS);
-                ctx.fillStyle = TC.ink; ctx.textAlign = 'center'; ctx.font = `bold ${vFs}px Cairo`;
-                let v = String(it[1]||'—');
-                while(ctx.measureText(v).width > bWW-28 && v.length > 0) v = v.slice(0,-1);
-                if(v !== String(it[1]||'—')) v += '...';
-                ctx.fillText(v, bx+bWW/2, ry+rH*0.65);
+                ctx.fillStyle = TC.ink; ctx.textAlign = 'center';
+                const v = String(it[1]||'—'); let vf = vFs;
+                ctx.font = `bold ${vf}px Cairo`;
+                while(ctx.measureText(v).width > bWW-24 && vf > 40){ vf -= 4; ctx.font = `bold ${vf}px Cairo`; }
+                let vt = v;
+                while(ctx.measureText(vt).width > bWW-24 && vt.length > 0) vt = vt.slice(0,-1);
+                if(vt !== v) vt += '…';
+                ctx.fillText(vt, bx+bWW/2, ry+rH*0.65);
                 ctx.fillStyle = TC.muted; ctx.font = `normal ${lFs}px Cairo`;
                 ctx.fillText(it[0], bx+bWW/2, ry+rH*0.87);
             });
             drawRow(row1, bW1, y);
             drawRow(row2, bW2, y+rH+cGap);
+        }
+
+        // ── مساعد: تاريخ مقيّد بالعرض + أيقونة تقويم ذهبية ──────
+        // يصغّر الخط تلقائياً حتى يتسع داخل maxW (لا يطفح أبداً)
+        function nDate(ctx, c, cx, midY, maxW, maxFs) {
+            const ds = `${c.s||'—'}   ←   ${c.e||'—'}`;
+            let fs = Math.round(maxFs);
+            ctx.font = `bold ${fs}px Cairo`;
+            while (ctx.measureText(ds).width > maxW && fs > 22) { fs -= 2; ctx.font = `bold ${fs}px Cairo`; }
+            const tw = ctx.measureText(ds).width;
+            const icoS = fs*0.62, icoGap = fs*0.55;
+            const groupW = tw + icoGap + icoS;
+            // RTL: التقويم على اليمين، النص على يساره
+            const icoCx = cx + groupW/2 - icoS/2;
+            const txtCx = cx - (icoGap + icoS)/2;
+            // calendar glyph
+            ctx.save();
+            ctx.strokeStyle = TC.gold; ctx.lineWidth = Math.max(3, fs*0.07); ctx.lineJoin='round';
+            const r = icoS/2;
+            drawRoundedRect2(ctx, icoCx-r, midY-r*0.82, r*2, r*1.7, r*0.22, true);
+            ctx.beginPath(); ctx.moveTo(icoCx-r, midY-r*0.30); ctx.lineTo(icoCx+r, midY-r*0.30); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(icoCx-r*0.45, midY-r*0.82-r*0.30); ctx.lineTo(icoCx-r*0.45, midY-r*0.82+r*0.10);
+            ctx.moveTo(icoCx+r*0.45, midY-r*0.82-r*0.30); ctx.lineTo(icoCx+r*0.45, midY-r*0.82+r*0.10); ctx.stroke();
+            ctx.restore();
+            // date text
+            ctx.fillStyle = TC.sub; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.font = `bold ${fs}px Cairo`;
+            ctx.fillText(ds, txtCx, midY);
+            ctx.textBaseline = 'alphabetic';
+            return fs;
+        }
+        // stroke-able rounded rect helper (للأيقونات)
+        function drawRoundedRect2(ctx, x, y, w, h, r, stroke) {
+            ctx.beginPath();
+            ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+            ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+            ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+            ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+            if(stroke) ctx.stroke(); else ctx.fill();
         }
 
         // ── Template 17: شبكة 2×2 المتميزة ──────────────────────
@@ -2491,28 +2535,22 @@
             ctx.fillStyle=TC.gold; ctx.textAlign='center'; ctx.font=`bold ${Math.round(numR*1.05)}px Cairo`;
             ctx.fillText(String(idx), numX, numY+numR*0.37);
 
-            // ── العنوان في الرأس ──────────────────────────────────
+            // ── العنوان في الرأس (يتقلّص ليتسع) ──────────────────
             const tAvailW = w - numR*2.3 - PAD*3;
-            const tFs17 = Math.round(HDR * 0.30);
+            const tFs17 = Math.round(HDR * 0.26);
             const tRes17 = wrapTextSmart(ctx, c.n, tAvailW, 2, tFs17);
             ctx.fillStyle='#FFFFFF'; ctx.textAlign='right'; ctx.font=`bold ${tRes17.fontSize}px Cairo`;
             let ty17 = y + (HDR - tRes17.lines.length*tRes17.lineHeight)/2 + tRes17.fontSize*0.88;
             tRes17.lines.forEach(l=>{ ctx.fillText(l, x+tAvailW+PAD*2, ty17); ty17+=tRes17.lineHeight; });
 
-            // ── المنطقة الداخلية: احسب المحتوى أولاً ────────────
+            // ── المنطقة الداخلية: التاريخ ثم chips تملأ الباقي ────
             const innerH = h - HDR - BOT;
-            const dtFs17 = Math.round(innerH * 0.090);
-            const dtH17  = Math.round(dtFs17 * 1.80);
-            const chipsH = innerH - dtH17 - PAD*4;  // chips تملأ الباقي
-            const dtY17  = y + HDR + PAD*1.5;
-            const c32Y   = dtY17 + dtH17 + PAD*2;
-
-            // ── التاريخ ───────────────────────────────────────────
-            ctx.fillStyle=TC.sub; ctx.textAlign='center'; ctx.font=`normal ${dtFs17}px Cairo`;
-            ctx.fillText(`${c.s||'—'}  ←  ${c.e||'—'}`, x+w/2, dtY17+dtFs17);
-
-            // ── الـ chips (صفّان 3+2) يملآن الفراغ ────────────────
-            nChips32(ctx, c, x+PAD*2, c32Y, w-PAD*4, chipsH);
+            const dtBandH = Math.round(innerH * 0.16);
+            const dtTop   = y + HDR;
+            nDate(ctx, c, x+w/2, dtTop + dtBandH/2, w - PAD*6, innerH*0.075);
+            const chipsTop = dtTop + dtBandH + PAD;
+            const chipsH   = (y + h - BOT - PAD) - chipsTop;
+            nChips32(ctx, c, x+PAD*2, chipsTop, w-PAD*4, chipsH);
 
             // ── شريط المنسق (أسفل) ───────────────────────────────
             ctx.save();
@@ -2596,9 +2634,8 @@
             ctx.fillStyle=TC.ink; ctx.textAlign='center'; ctx.font=`bold ${tRes.fontSize}px Cairo`;
             tRes.lines.forEach((l,i)=>{ ctx.fillText(l, cX, cy+tRes.fontSize+i*tRes.lineHeight); });
             cy += ttlH + dtGap;
-            // تاريخ
-            ctx.fillStyle=TC.sub; ctx.font=`normal ${dtFs}px Cairo`;
-            ctx.fillText(`${c.s||'—'}  ←  ${c.e||'—'}`, cX, cy+dtFs);
+            // تاريخ (مقيّد بالعرض)
+            nDate(ctx, c, cX, cy+dtFs*0.7, bW-PAD*2, dtFs);
             cy += Math.round(dtFs*1.6) + chGap;
             // chips (صف واحد 5 عناصر)
             nChips(ctx, c, bX+PAD/2, cy, bW-PAD, chH);
@@ -2751,8 +2788,7 @@
             ctx.fillStyle=TC.ink; ctx.textAlign='center'; ctx.font=`bold ${tRes.fontSize}px Cairo`;
             tRes.lines.forEach((l,i)=>ctx.fillText(l, cX, cy+tRes.fontSize+i*tRes.lineHeight));
             cy += ttlH + dtGap;
-            ctx.fillStyle=TC.sub; ctx.font=`normal ${dtFs}px Cairo`;
-            ctx.fillText(`${c.s||'—'}  ←  ${c.e||'—'}`, cX, cy+dtFs);
+            nDate(ctx, c, cX, cy+dtFs*0.7, bW-PAD*2, dtFs);
             cy += Math.round(dtFs*1.6) + chGap;
             nChips(ctx, c, x+PAD/2, cy, bW-PAD, chH);
         }
@@ -2819,8 +2855,7 @@
             ctx.fillStyle=TC.ink; ctx.textAlign='center'; ctx.font=`bold ${tRes.fontSize}px Cairo`;
             tRes.lines.forEach((l,i)=>ctx.fillText(l, cX, cy+tRes.fontSize+i*tRes.lineHeight));
             cy += ttlH + dtGap;
-            ctx.fillStyle=TC.sub; ctx.font=`normal ${dtFs}px Cairo`;
-            ctx.fillText(`${c.s||'—'}  ←  ${c.e||'—'}`, cX, cy+dtFs);
+            nDate(ctx, c, cX, cy+dtFs*0.7, cntW-PAD*2, dtFs);
             cy += Math.round(dtFs*1.6) + chGap;
             nChips(ctx, c, cntX, cy, cntW, chH);
         }
