@@ -717,33 +717,33 @@
             <div class="template-grid-new" role="radiogroup" aria-label="اختر نمط التصميم">
 
               <!-- MODERN -->
-              <div onclick="selectTemplate(1)" class="tpl-card selected" id="tpl-1" role="radio" aria-checked="true" tabindex="0" aria-label="قالب عصري">
+              <div onclick="selectTemplate(1)" class="tpl-card selected" id="tpl-1" role="radio" aria-checked="true" tabindex="0" aria-label="N1">
                 <div class="tpl-thumb-area"><div class="w-full h-full bg-gradient-to-br from-white to-slate-50 flex items-center justify-center text-[#2c6060] text-[8px] font-black border-b-2 border-[#016564]">MODERN</div></div>
-                <div class="tpl-name">العصري</div>
+                <div class="tpl-name">N1</div>
               </div>
 
               <!-- LUXURY -->
               <div onclick="selectTemplate(2)" class="tpl-card" id="tpl-2" role="radio" aria-checked="false" tabindex="0" aria-label="قالب فاخر">
                 <div class="tpl-thumb-area"><div class="w-full h-full bg-[#016564] flex items-center justify-center text-[#d0b284] text-[8px] font-black">LUXURY</div></div>
-                <div class="tpl-name">الداكن الفاخر</div>
+                <div class="tpl-name">N2</div>
               </div>
 
               <!-- VIBRANT -->
               <div onclick="selectTemplate(3)" class="tpl-card" id="tpl-3" role="radio" aria-checked="false" tabindex="0" aria-label="قالب حيوي">
                 <div class="tpl-thumb-area"><div class="w-full h-full bg-gradient-to-r from-teal-500 to-blue-500 flex items-center justify-center text-white text-[8px] font-black">VIBRANT</div></div>
-                <div class="tpl-name">الحيوي</div>
+                <div class="tpl-name">N3</div>
               </div>
 
               <!-- iOS -->
               <div onclick="selectTemplate(4)" class="tpl-card" id="tpl-4" role="radio" aria-checked="false" tabindex="0" aria-label="قالب iOS">
                 <div class="tpl-thumb-area"><div class="w-full h-full bg-[#f5f5f7] flex flex-col items-center justify-center gap-0.5"><div class="w-4 h-4 rounded bg-[#1d1d1f]"></div><div class="text-[7px] font-black text-[#1d1d1f]">iOS</div></div></div>
-                <div class="tpl-name">iOS فائق</div>
+                <div class="tpl-name">N4 — iOS</div>
               </div>
 
               <!-- REF 5 → لوحة التشغيل -->
               <div onclick="selectTemplate(16)" class="tpl-card" id="tpl-16" role="radio" aria-checked="false" tabindex="0" aria-label="قالب لوحة التشغيل">
                 <div class="tpl-thumb-area" style="background:#f9f5ed;display:flex"><div style="flex:1;display:flex;align-items:center;justify-content:center"><span class="text-[7px] font-black" style="color:#0d3d3c">لوحة</span></div><div style="width:10px;background:#0d3d3b"></div></div>
-                <div class="tpl-name">لوحة التشغيل ١</div>
+                <div class="tpl-name">N5</div>
               </div>
 
               <!-- N1 → الشبكة المتميزة -->
@@ -756,7 +756,7 @@
                     <div class="flex flex-col gap-[1px]"><div class="h-[7px] rounded-[1px]" style="background:#2A6364"></div><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde"></div></div>
                   </div>
                 </div>
-                <div class="tpl-name">الشبكة المتميزة</div>
+                <div class="tpl-name">N6</div>
               </div>
 
               <!-- N2 → أفقي يمين -->
@@ -769,7 +769,7 @@
                     <div class="flex-1 flex gap-0"><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde"></div><div class="w-[5px]" style="background:#2A6364"></div></div>
                   </div>
                 </div>
-                <div class="tpl-name">أفقي — يمين</div>
+                <div class="tpl-name">N7</div>
               </div>
 
               <!-- N3 → الجدول الزمني -->
@@ -790,7 +790,7 @@
                     </div>
                   </div>
                 </div>
-                <div class="tpl-name">الجدول الزمني</div>
+                <div class="tpl-name">N8</div>
               </div>
 
               <!-- N4 → التنفيذي الفاخر -->
@@ -803,7 +803,7 @@
                     <div class="flex-1 flex gap-0"><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-top:3px solid #C7B08C"></div><div class="w-[6px]" style="background:#2A6364"></div></div>
                   </div>
                 </div>
-                <div class="tpl-name">التنفيذي الفاخر</div>
+                <div class="tpl-name">N9</div>
               </div>
 
               <!-- N5 → لوحة العمليات -->
@@ -816,7 +816,7 @@
                     <div class="flex-1 flex gap-0"><div class="w-[6px]" style="background:#2A6364"></div><div class="flex-1 rounded-[1px]" style="background:#fff;border:1px solid #dde;border-top:3px solid #C7B08C"></div></div>
                   </div>
                 </div>
-                <div class="tpl-name">لوحة العمليات</div>
+                <div class="tpl-name">N10</div>
               </div>
 
             </div><!-- /template-grid-new -->
@@ -1020,10 +1020,8 @@
    ────────────────────────────────────────────────────────────── */
 
 const TEMPLATE_NAMES_AR = {
-  1:'العصري', 2:'الداكن الفاخر', 3:'الحيوي', 4:'iOS فائق الجودة',
-  16:'لوحة التشغيل',
-  17:'الشبكة المتميزة', 18:'أفقي — يمين', 19:'الجدول الزمني',
-  20:'التنفيذي الفاخر', 21:'لوحة العمليات'
+  1:'N1', 2:'N2', 3:'N3', 4:'N4 — iOS',
+  16:'N5', 17:'N6', 18:'N7', 19:'N8', 20:'N9', 21:'N10'
 };
 
 let _currentStep = 1;
@@ -1127,7 +1125,9 @@ async function renderLivePreview() {
   _previewRendering = true;
   try {
     await document.fonts.ready;
-    const previewList = validRows.slice(0, 4);
+    // T17 (N6) تُظهر 6 دورات في الصورة الواحدة
+    const previewChunk = (typeof currentTemplate !== 'undefined' && currentTemplate === 17) ? 6 : 4;
+    const previewList = validRows.slice(0, previewChunk);
     const stats = (typeof getStats !== 'undefined') ? getStats(validRows) : { t: validRows.length, n: 0, c: 0, i: 0 };
 
     // اعتمد على getScreenRender() للحصول على أبعاد الرسم الفعلية
