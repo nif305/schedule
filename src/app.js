@@ -829,27 +829,30 @@
 
         // --- 5. Save Logic ---
         
-        // اللوحة الأساسية الثابتة 2160×3840 (نسبة 9:16).
-        // القوالب الاحترافية مصمّمة لتملأ هذه اللوحة بالكامل ثم تُصدّر بمضاعف ثابت:
-        //   • القوالب 12–21 → ×2 = 4320×7680 (8K)، بلا قص ولا تجاوز ولا تخطيط متجاوب.
-        //   • قالب iOS HD (4) → ×3 = 6480×11520.
-        //   • باقي القوالب → ×1 = 2160×3840.
+        // اللوحة الأساسية الثابتة 2160×3840 (نسبة 9:16). كل القوالب تُصدَّر بدقة 8K
+        // (4320×7680) بلا قص ولا تجاوز ولا تخطيط متجاوب — مع مضاعف رسم ثابت:
+        //   • القوالب القديمة (MODERN/LUXURY/VIBRANT…) مرسومة على 2160 → ctx.scale(2)
+        //     يعيد رسمها بدقة مضاعفة (نصوص حادة) لتملأ 4320×7680.
+        //   • القوالب الاحترافية 12–21 مرسومة أصلاً على 4320 → بلا تحجيم.
+        //   • قالب iOS HD (4) مرسوم على 6480×11520 (×3) → بلا تحجيم.
         const SCREEN_BASE_W = 2160, SCREEN_BASE_H = 3840;
-        function getScreenExportScale() {
-            if (currentTemplate === 4) return 3;
-            if ([12,13,14,15,16,17,18,19,20,21].includes(currentTemplate)) return 2;
-            return 1;
+        function getScreenRender() {
+            if (currentTemplate === 4) return { w: 6480, h: 11520, ds: 1 };
+            if ([12,13,14,15,16,17,18,19,20,21].includes(currentTemplate)) return { w: 4320, h: 7680, ds: 1 };
+            return { w: 4320, h: 7680, ds: 2 }; // legacy authored at 2160 → ×2 to reach 8K
         }
         async function generateScreenZipBlob(valid, week) {
             const stats = getStats(valid);
             const zip = new JSZip();
             const chunksS = chunk(valid, 4);
-            const scale = getScreenExportScale();
+            const r = getScreenRender();
             for(let i=0; i<chunksS.length; i++) {
                 const canvas = document.createElement('canvas');
-                canvas.width  = SCREEN_BASE_W * scale;
-                canvas.height = SCREEN_BASE_H * scale;
-                const ctx = canvas.getContext('2d'); drawScreenCard(ctx, chunksS[i], stats, i+1, chunksS.length, i*4, logoImage);
+                canvas.width  = r.w;
+                canvas.height = r.h;
+                const ctx = canvas.getContext('2d');
+                if (r.ds !== 1) ctx.scale(r.ds, r.ds);
+                drawScreenCard(ctx, chunksS[i], stats, i+1, chunksS.length, i*4, logoImage);
                 const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
                 zip.file('Week-' + week + '-Screen-' + (i+1) + '.jpg', blob);
             }
@@ -1974,34 +1977,9 @@
             ctx.restore();
         }
 
-        // ─── Big chip row — sizes proportional to h (chip height) ─
+        // ─── Big chip row — موحّد مع nChips (سقف ارتفاع + توسيط + أوزان مرهفة) ─
         function tChip(ctx, c, x, y, w, h) {
-            const it=[
-                ['مكان التنفيذ',c.loc,0],['الفترة',c.p,1],
-                ['الحالة',c.st,2],['القاعة',c.r,3],
-                ['الطابق',shouldHideFloorValue(c.f)?'—':c.f,4],
-            ];
-            const gap=24, bW=(w-gap*4)/5;
-            const iconS = h*0.20;
-            const valFs = Math.min(190, h*0.35);
-            const lblFs = Math.min(74, h*0.16);
-            const iconCY = y+h*0.28;
-            const valY   = y+h*0.64;
-            const lblY   = y+h*0.86;
-            it.forEach((item,i)=>{
-                const bx=x+i*(bW+gap);
-                ctx.fillStyle=TC.soft; drawRoundedRect(ctx,bx,y,bW,h,24);
-                ctx.strokeStyle=TC.goldL; ctx.lineWidth=3; ctx.strokeRect(bx,y,bW,h);
-                ctx.fillStyle=TC.gold; ctx.fillRect(bx,y,bW,7);
-                tChipIcon(ctx, item[2], bx+bW/2, iconCY, iconS);
-                ctx.fillStyle=TC.ink; ctx.textAlign='center'; ctx.font=`bold ${valFs}px Cairo`;
-                let v=String(item[1]||'—');
-                while(ctx.measureText(v).width>bW-44&&v.length>0) v=v.slice(0,-1);
-                if(v!==String(item[1]||'—')) v+='...';
-                ctx.fillText(v, bx+bW/2, valY);
-                ctx.fillStyle=TC.muted; ctx.font=`normal ${lblFs}px Cairo`;
-                ctx.fillText(item[0], bx+bW/2, lblY);
-            });
+            nChips(ctx, c, x, y, w, h);
         }
 
         // ─── Title 2-line max, proportional ───────────────────────
@@ -2060,7 +2038,7 @@
             ctx.fillStyle=gS; ctx.fillRect(x+w-sW,y,sW,h); ctx.restore();
             ctx.fillStyle=TC.gold; ctx.fillRect(x+w-sW,y+25,9,h-50);
             // sidebar: index number (proportional to h)
-            const numFs=Math.min(280,h*0.20);
+            const numFs=Math.min(216,h*0.155);
             ctx.fillStyle=TC.gold; ctx.textAlign='center'; ctx.font=`bold ${numFs}px Cairo`;
             ctx.fillText(String(idx),x+w-sW/2,y+h*0.27);
             // separator
@@ -2073,7 +2051,7 @@
             ctx.strokeStyle='rgba(199,176,140,0.45)'; ctx.lineWidth=2.5;
             ctx.beginPath(); ctx.moveTo(x+w-sW+80,y+h*0.58); ctx.lineTo(x+w-80,y+h*0.58); ctx.stroke();
             // coordinator name (LARGE)
-            const coNameFs=Math.min(130,h*0.09);
+            const coNameFs=Math.min(108,h*0.075);
             ctx.fillStyle='#FFFFFF'; ctx.font=`bold ${coNameFs}px Cairo`;
             const spLines=wrapTextSimple(ctx,c.sp||'—',sW-70).slice(0,2);
             spLines.forEach((l,li)=>ctx.fillText(l,x+w-sW/2,y+h*0.67+li*(coNameFs*1.35)));
@@ -2085,7 +2063,7 @@
             tChip(ctx,c,x+44,chipY,bW-80,chipH);
             // title + date vertically centered in space above chips
             const availH=chipY-y;
-            const titleFs=Math.min(190,h*0.13);
+            const titleFs=Math.min(150,h*0.10);
             const dateFs=Math.min(95,h*0.068);
             const lh=titleFs*1.40;
             const tRes=wrapTextSmart(ctx,c.n,bW-120,2,titleFs);
@@ -2159,7 +2137,7 @@
             tChip(ctx,c,x+40,chipY,w-80,chipH);
             // title centered in remaining space
             const bodyH=chipY-y-dSH-20;
-            const titleFs=Math.min(180,h*0.12);
+            const titleFs=Math.min(146,h*0.098);
             const tRes=wrapTextSmart(ctx,c.n,w-100,2,titleFs);
             const titleBlockH=tRes.lines.length*titleFs*1.40;
             const titleY=y+dSH+20+(bodyH-titleBlockH)/2+titleFs;
@@ -2222,7 +2200,7 @@
             ctx.fillText('منسق التدريب',x+w-cpW/2,y+h*0.67);
             ctx.strokeStyle='rgba(199,176,140,0.44)'; ctx.lineWidth=2.5;
             ctx.beginPath(); ctx.moveTo(x+w-cpW+70,y+h*0.70); ctx.lineTo(x+w-70,y+h*0.70); ctx.stroke();
-            const coNameFs=Math.min(128,h*0.090);
+            const coNameFs=Math.min(108,h*0.075);
             ctx.fillStyle='#FFFFFF'; ctx.font=`bold ${coNameFs}px Cairo`;
             wrapTextSimple(ctx,c.sp||'—',cpW-58).slice(0,2).forEach((l,li)=>
                 ctx.fillText(l,x+w-cpW/2,y+h*0.78+li*(coNameFs*1.38)));
@@ -2232,7 +2210,7 @@
             const chipY=y+h-chipH-44;
             tChip(ctx,c,x+44,chipY,bW-85,chipH);
             const availH=chipY-y;
-            const titleFs=Math.min(190,h*0.13);
+            const titleFs=Math.min(150,h*0.10);
             const dateFs=Math.min(95,h*0.068);
             const tRes=wrapTextSmart(ctx,c.n,bW-130,2,titleFs);
             const lh=tRes.fontSize*1.40;
@@ -2371,7 +2349,7 @@
             ctx.fillText('منسق التدريب',coX+coW/2,coY+coH*0.40);
             ctx.strokeStyle='rgba(199,176,140,0.52)'; ctx.lineWidth=3;
             ctx.beginPath(); ctx.moveTo(coX+44,coY+coH*0.46); ctx.lineTo(coX+coW-44,coY+coH*0.46); ctx.stroke();
-            const coNameFs16=Math.min(120,h*0.088);
+            const coNameFs16=Math.min(106,h*0.072);
             ctx.fillStyle='#FFFFFF'; ctx.font=`bold ${coNameFs16}px Cairo`;
             wrapTextSimple(ctx,c.sp||'—',coW-48).slice(0,2).forEach((l,li)=>
                 ctx.fillText(l,coX+coW/2,coY+coH*0.57+li*(coNameFs16*1.38)));
@@ -2383,7 +2361,7 @@
             tChip(ctx,c,cntX,chipY16,cntW,chipH16);
             // title + date centered above chips
             const availH16=chipY16-y;
-            const titleFs16=Math.min(185,h*0.13);
+            const titleFs16=Math.min(148,h*0.10);
             const dateFs16=Math.min(90,h*0.065);
             const tRes16=wrapTextSmart(ctx,c.n,cntW-60,2,titleFs16);
             const lh16=tRes16.fontSize*1.40;
@@ -2411,25 +2389,31 @@
                 ['القاعة',        c.r,     3],
                 ['الطابق',        shouldHideFloorValue(c.f)?'—':c.f, 4],
             ];
-            const gap = w * 0.012, bW = (w - gap*4) / 5;
-            const icS = h * 0.22, vFs = Math.min(h*0.36, 180), lFs = Math.min(h*0.17, 76);
+            // سقف ثابت لارتفاع الـ chip ثم توسيطه عمودياً في المنطقة المتاحة
+            // (يمنع تضخّم الصناديق في البطاقات الطويلة ويعطي تنفّساً متوازناً)
+            const CHIP_MAX = 300;
+            const ch = Math.min(h, CHIP_MAX);
+            const cy = y + (h - ch) / 2;
+            const gap = w * 0.016, bW = (w - gap*4) / 5;
+            const icS = Math.min(ch*0.19, bW*0.17, 64);
+            const vFs = Math.min(ch*0.30, bW*0.27, 96);
+            const lFs = Math.min(ch*0.15, 46);
             items.forEach((it, i) => {
                 const bx = x + i*(bW+gap);
-                ctx.fillStyle = TC.soft; drawRoundedRect(ctx,bx,y,bW,h,20);
-                ctx.strokeStyle = TC.goldL; ctx.lineWidth = 3; ctx.strokeRect(bx,y,bW,h);
-                ctx.fillStyle = TC.gold; ctx.fillRect(bx,y,bW,7);
-                tChipIcon(ctx, it[2], bx+bW/2, y+h*0.30, icS);
-                // القيمة: قلّص الخط ليتسع النص كاملاً قبل اللجوء للقص
+                ctx.fillStyle = TC.soft; drawRoundedRect(ctx,bx,cy,bW,ch,Math.min(22,ch*0.10));
+                ctx.strokeStyle = TC.line; ctx.lineWidth = 2.5; ctx.strokeRect(bx,cy,bW,ch);
+                ctx.fillStyle = TC.gold; ctx.fillRect(bx,cy,bW,Math.max(4,ch*0.020));
+                tChipIcon(ctx, it[2], bx+bW/2, cy+ch*0.27, icS);
                 ctx.fillStyle = TC.ink; ctx.textAlign = 'center';
                 const v = String(it[1]||'—'); let vf = vFs;
-                ctx.font = `bold ${vf}px Cairo`;
-                while(ctx.measureText(v).width > bW-28 && vf > 44){ vf -= 4; ctx.font = `bold ${vf}px Cairo`; }
+                ctx.font = `600 ${vf}px Cairo`;
+                while(ctx.measureText(v).width > bW-bW*0.16 && vf > 32){ vf -= 3; ctx.font = `600 ${vf}px Cairo`; }
                 let vt = v;
-                while(ctx.measureText(vt).width > bW-28 && vt.length > 0) vt = vt.slice(0,-1);
+                while(ctx.measureText(vt).width > bW-bW*0.16 && vt.length > 0) vt = vt.slice(0,-1);
                 if(vt !== v) vt += '…';
-                ctx.fillText(vt, bx+bW/2, y+h*0.65);
-                ctx.fillStyle = TC.muted; ctx.font = `normal ${lFs}px Cairo`;
-                ctx.fillText(it[0], bx+bW/2, y+h*0.87);
+                ctx.fillText(vt, bx+bW/2, cy+ch*0.60);
+                ctx.fillStyle = TC.muted; ctx.font = `400 ${lFs}px Cairo`;
+                ctx.fillText(it[0], bx+bW/2, cy+ch*0.82);
             });
         }
 
@@ -2437,29 +2421,36 @@
         function nChips32(ctx, c, x, y, w, h) {
             const row1 = [['الطابق',shouldHideFloorValue(c.f)?'—':c.f,4],['القاعة',c.r,3],['الحالة',c.st,2]];
             const row2 = [['الفترة',c.p,1],['مكان التنفيذ',c.loc,0]];
-            const gap = w * 0.012, cGap = h * 0.045;
-            const rH = (h - cGap) / 2;
+            // صفّان يملآن المنطقة (مع سقف معتدل) ثم توسيط الكتلة عمودياً
+            const ROW_MAX = 560;
+            const cGap = Math.min(h * 0.06, 80);
+            const rH = Math.min((h - cGap) / 2, ROW_MAX);
+            const blockH = rH*2 + cGap;
+            const y0 = y + (h - blockH) / 2;
+            const gap = w * 0.016;
             const bW1 = (w - gap*2) / 3, bW2 = (w - gap) / 2;
-            const icS = rH * 0.22, vFs = Math.min(rH*0.36, 170), lFs = Math.min(rH*0.17, 72);
+            const icS = Math.min(rH*0.155, 86);
+            const vFs = Math.min(rH*0.225, 116);
+            const lFs = Math.min(rH*0.115, 54);
             const drawRow = (arr, bWW, ry) => arr.forEach((it, i) => {
                 const bx = x + i*(bWW+gap);
-                ctx.fillStyle = TC.soft; drawRoundedRect(ctx,bx,ry,bWW,rH,18);
-                ctx.strokeStyle = TC.goldL; ctx.lineWidth = 3; ctx.strokeRect(bx,ry,bWW,rH);
-                ctx.fillStyle = TC.gold; ctx.fillRect(bx,ry,bWW,7);
-                tChipIcon(ctx, it[2], bx+bWW/2, ry+rH*0.30, icS);
+                ctx.fillStyle = TC.soft; drawRoundedRect(ctx,bx,ry,bWW,rH,Math.min(22,rH*0.12));
+                ctx.strokeStyle = TC.line; ctx.lineWidth = 2.5; ctx.strokeRect(bx,ry,bWW,rH);
+                ctx.fillStyle = TC.gold; ctx.fillRect(bx,ry,bWW,Math.max(4,rH*0.030));
+                tChipIcon(ctx, it[2], bx+bWW/2, ry+rH*0.27, icS);
                 ctx.fillStyle = TC.ink; ctx.textAlign = 'center';
                 const v = String(it[1]||'—'); let vf = vFs;
-                ctx.font = `bold ${vf}px Cairo`;
-                while(ctx.measureText(v).width > bWW-24 && vf > 40){ vf -= 4; ctx.font = `bold ${vf}px Cairo`; }
+                ctx.font = `600 ${vf}px Cairo`;
+                while(ctx.measureText(v).width > bWW-bWW*0.14 && vf > 30){ vf -= 3; ctx.font = `600 ${vf}px Cairo`; }
                 let vt = v;
-                while(ctx.measureText(vt).width > bWW-24 && vt.length > 0) vt = vt.slice(0,-1);
+                while(ctx.measureText(vt).width > bWW-bWW*0.14 && vt.length > 0) vt = vt.slice(0,-1);
                 if(vt !== v) vt += '…';
-                ctx.fillText(vt, bx+bWW/2, ry+rH*0.65);
-                ctx.fillStyle = TC.muted; ctx.font = `normal ${lFs}px Cairo`;
-                ctx.fillText(it[0], bx+bWW/2, ry+rH*0.87);
+                ctx.fillText(vt, bx+bWW/2, ry+rH*0.605);
+                ctx.fillStyle = TC.muted; ctx.font = `400 ${lFs}px Cairo`;
+                ctx.fillText(it[0], bx+bWW/2, ry+rH*0.83);
             });
-            drawRow(row1, bW1, y);
-            drawRow(row2, bW2, y+rH+cGap);
+            drawRow(row1, bW1, y0);
+            drawRow(row2, bW2, y0+rH+cGap);
         }
 
         // ── مساعد: تاريخ مقيّد بالعرض + أيقونة تقويم ذهبية ──────
@@ -2555,11 +2546,11 @@
 
             // ── المنطقة الداخلية: التاريخ ثم chips تملأ الباقي ────
             const innerH = h - HDR - BOT;
-            const dtBandH = Math.round(innerH * 0.16);
+            const dtBandH = Math.round(innerH * 0.12);
             const dtTop   = y + HDR;
-            nDate(ctx, c, x+w/2, dtTop + dtBandH/2, w - PAD*6, innerH*0.075);
-            const chipsTop = dtTop + dtBandH + PAD;
-            const chipsH   = (y + h - BOT - PAD) - chipsTop;
+            nDate(ctx, c, x+w/2, dtTop + dtBandH/2, w - PAD*6, Math.min(innerH*0.062, 78));
+            const chipsTop = dtTop + dtBandH;
+            const chipsH   = (y + h - BOT) - chipsTop;
             nChips32(ctx, c, x+PAD*2, chipsTop, w-PAD*4, chipsH);
 
             // ── شريط المنسق (أسفل) ───────────────────────────────
@@ -2629,11 +2620,11 @@
             const bW  = w - PNL - PAD;
             const bX  = x + PAD/2;
             const cX  = bX + bW/2;
-            const ttlFs = Math.round(h * 0.115);
-            const dtFs  = Math.round(h * 0.052);
-            const chH   = Math.round(h * 0.310);  // ارتفاع صف الـ chips
-            const dtGap = Math.round(h * 0.030);
-            const chGap = Math.round(h * 0.035);
+            const ttlFs = Math.min(Math.round(h * 0.092), 150);
+            const dtFs  = Math.min(Math.round(h * 0.046), 76);
+            const chH   = Math.round(h * 0.300);  // منطقة الـ chips (تُحدّ وتُوسّط داخلياً)
+            const dtGap = Math.round(h * 0.034);
+            const chGap = Math.round(h * 0.040);
 
             const tRes = wrapTextSmart(ctx, c.n, bW-PAD*2, 2, ttlFs);
             const ttlH = tRes.lines.length * tRes.lineHeight;
@@ -2711,9 +2702,9 @@
             const innerH = h - DSH - CSH;
             const PAD = Math.round(innerH * 0.04);
 
-            const ttlFs = Math.round(innerH * 0.160);
-            const chH   = Math.round(innerH * 0.420);
-            const chGap = Math.round(innerH * 0.040);
+            const ttlFs = Math.min(Math.round(innerH * 0.125), 150);
+            const chH   = Math.round(innerH * 0.400);
+            const chGap = Math.round(innerH * 0.050);
 
             const tRes = wrapTextSmart(ctx, c.n, w-PAD*4, 2, ttlFs);
             const ttlH = tRes.lines.length * tRes.lineHeight;
@@ -2784,11 +2775,11 @@
             // ── المحتوى (iOS method: احسب أولاً ثم مركز) ─────────
             const bW = w - PNL - PAD*1.5;
             const cX = x + bW/2;
-            const ttlFs = Math.round(h * 0.112);
-            const dtFs  = Math.round(h * 0.050);
-            const chH   = Math.round(h * 0.320);
-            const dtGap = Math.round(h * 0.030);
-            const chGap = Math.round(h * 0.035);
+            const ttlFs = Math.min(Math.round(h * 0.090), 150);
+            const dtFs  = Math.min(Math.round(h * 0.044), 74);
+            const chH   = Math.round(h * 0.310);
+            const dtGap = Math.round(h * 0.032);
+            const chGap = Math.round(h * 0.040);
 
             const tRes = wrapTextSmart(ctx, c.n, bW-PAD*3, 2, ttlFs);
             const ttlH = tRes.lines.length * tRes.lineHeight;
@@ -2851,11 +2842,11 @@
             const cntX = coX + PNL + PAD;
             const cntW = w - PNL - PAD*4 - 10;
             const cX   = cntX + cntW/2;
-            const ttlFs = Math.round(h * 0.112);
-            const dtFs  = Math.round(h * 0.050);
-            const chH   = Math.round(h * 0.320);
-            const dtGap = Math.round(h * 0.030);
-            const chGap = Math.round(h * 0.035);
+            const ttlFs = Math.min(Math.round(h * 0.090), 150);
+            const dtFs  = Math.min(Math.round(h * 0.044), 74);
+            const chH   = Math.round(h * 0.310);
+            const dtGap = Math.round(h * 0.032);
+            const chGap = Math.round(h * 0.040);
 
             const tRes = wrapTextSmart(ctx, c.n, cntW-PAD*2, 2, ttlFs);
             const ttlH = tRes.lines.length * tRes.lineHeight;
