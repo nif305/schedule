@@ -829,16 +829,26 @@
 
         // --- 5. Save Logic ---
         
+        // اللوحة الأساسية الثابتة 2160×3840 (نسبة 9:16).
+        // القوالب الاحترافية مصمّمة لتملأ هذه اللوحة بالكامل ثم تُصدّر بمضاعف ثابت:
+        //   • القوالب 12–21 → ×2 = 4320×7680 (8K)، بلا قص ولا تجاوز ولا تخطيط متجاوب.
+        //   • قالب iOS HD (4) → ×3 = 6480×11520.
+        //   • باقي القوالب → ×1 = 2160×3840.
+        const SCREEN_BASE_W = 2160, SCREEN_BASE_H = 3840;
+        function getScreenExportScale() {
+            if (currentTemplate === 4) return 3;
+            if ([12,13,14,15,16,17,18,19,20,21].includes(currentTemplate)) return 2;
+            return 1;
+        }
         async function generateScreenZipBlob(valid, week) {
             const stats = getStats(valid);
             const zip = new JSZip();
             const chunksS = chunk(valid, 4);
+            const scale = getScreenExportScale();
             for(let i=0; i<chunksS.length; i++) {
-                const isRefTemplate = [12, 13, 14, 15, 16].includes(currentTemplate);
-                const isIosHD = currentTemplate === 4;
                 const canvas = document.createElement('canvas');
-                canvas.width  = isRefTemplate ? 4320 : isIosHD ? 6480 : 2160;
-                canvas.height = isRefTemplate ? 7680 : isIosHD ? 11520 : 3840;
+                canvas.width  = SCREEN_BASE_W * scale;
+                canvas.height = SCREEN_BASE_H * scale;
                 const ctx = canvas.getContext('2d'); drawScreenCard(ctx, chunksS[i], stats, i+1, chunksS.length, i*4, logoImage);
                 const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
                 zip.file('Week-' + week + '-Screen-' + (i+1) + '.jpg', blob);
