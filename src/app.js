@@ -1,7 +1,7 @@
 ﻿// --- 1. Setup & Helpers ---
         let rows = [];
         let currentTemplate = 1;
-        const ALLOWED_TEMPLATES = new Set([1, 2, 3, 4, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]);
+        const ALLOWED_TEMPLATES = new Set([1, 2, 3, 4, 17, 18, 19, 20, 21]);
         let logoImage = null; 
         let darkLogoImage = null;
         let lastBlob = null; 
@@ -854,7 +854,9 @@
         const SCREEN_BASE_W = 2160, SCREEN_BASE_H = 3840;
         function getScreenRender() {
             if (currentTemplate === 4)  return { w: 6480, h: 11520, ds: 1 };
-            if ([16,17,18,19,20,21,22,23,24,25].includes(currentTemplate)) return { w: 4320, h: 7680, ds: 1 };
+            // القوالب 17–21 مرسومة على إحداثيات 4320 → نعرضها على 6480×11520
+            // عبر supersampling ×1.5 لنصوص فائقة الحدّة تفوق 8K
+            if ([17,18,19,20,21].includes(currentTemplate)) return { w: 6480, h: 11520, ds: 1.5 };
             return { w: 4320, h: 7680, ds: 2 };
         }
         async function generateScreenZipBlob(valid, week) {
@@ -870,7 +872,7 @@
                 canvas.height = r.h;
                 const ctx = canvas.getContext('2d');
                 if (r.ds !== 1) ctx.scale(r.ds, r.ds);
-                drawScreenCard(ctx, chunksS[i], stats, i+1, chunksS.length, i*4, logoImage);
+                drawScreenCard(ctx, chunksS[i], stats, i+1, chunksS.length, i*chunkSize, logoImage);
                 const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
                 zip.file('Week-' + week + '-Screen-' + (i+1) + '.jpg', blob);
             }
@@ -1249,17 +1251,12 @@
         // ---------------------------------------------------------
         function drawScreenCard(ctx, list, stats, pn, tp, si, logo) {
             if (currentTemplate === 4)  { drawIosHDScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
-            // Templates 12-15 removed from UI — routing kept for archive compatibility but not accessible
-            if (currentTemplate === 16) { drawReferenceFiveScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
-            if (currentTemplate === 17) { drawRef17ScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
-            if (currentTemplate === 18) { drawRef18ScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
-            if (currentTemplate === 19) { drawRef19ScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
-            if (currentTemplate === 20) { drawRef20ScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
-            if (currentTemplate === 21) { drawRef21ScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
-            if (currentTemplate === 22) { drawRef22ScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
-            if (currentTemplate === 23) { drawRef23ScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
-            if (currentTemplate === 24) { drawRef24ScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
-            if (currentTemplate === 25) { drawRef25ScreenCard(ctx, list, stats, pn, tp, si, logo); return; }
+            // القوالب الخمسة الاحترافية الجديدة (مبنية على منهج قياس iOS)
+            if (currentTemplate === 17) { drawRef17ScreenCard(ctx, list, stats, pn, tp, si, logo); return; } // شبكة 2×2
+            if (currentTemplate === 18) { drawRef18ScreenCard(ctx, list, stats, pn, tp, si, logo); return; } // أفقي شريط يمين
+            if (currentTemplate === 19) { drawRef19ScreenCard(ctx, list, stats, pn, tp, si, logo); return; } // خط زمني
+            if (currentTemplate === 20) { drawRef20ScreenCard(ctx, list, stats, pn, tp, si, logo); return; } // تنفيذي فاخر
+            if (currentTemplate === 21) { drawRef21ScreenCard(ctx, list, stats, pn, tp, si, logo); return; } // لوحة عمليات
             const W = 2160, H = 3840;
             drawBackground(ctx, W, H);
 
@@ -2479,9 +2476,9 @@
             const gap = w * 0.016;
             const bW1 = (w - gap*(row1.length-1)) / row1.length;
             const bW2 = (w - gap) / 2;
-            const icS = Math.min(rH*0.148, 80);
-            const vFs = Math.min(rH*0.210, 108);
-            const lFs = Math.min(rH*0.108, 50);
+            const icS = Math.min(rH*0.152, 84);
+            const vFs = Math.min(rH*0.228, 120); // +12 درجة لوضوح أفضل
+            const lFs = Math.min(rH*0.116, 56);  // +6 درجة
             // مسافات تضمن عدم التداخل بين الأيقونة والقيمة والتسمية
             const iRY = 0.26, vRY = 0.61, lRY = 0.83;
             const drawRow = (arr, bWW, ry) => arr.forEach((it, i) => {
@@ -2655,23 +2652,37 @@
             ctx.fillStyle=gP; ctx.fillRect(x+w-PNL,y,PNL,h); ctx.restore();
             ctx.fillStyle=TC.gold; ctx.fillRect(x+w-PNL-6,y+20,6,h-40);
             const pCX=x+w-PNL/2;
-            // رقم في الشريط
-            ctx.fillStyle=TC.gold; ctx.textAlign='center'; ctx.font=`bold ${Math.round(PNL*0.52)}px Cairo`;
-            ctx.fillText(String(idx), pCX, y+h*0.22);
+            // رقم في الشريط — أكبر + مُزاح للأسفل بعيداً عن الحد العلوي
+            const pN18Fs = Math.min(Math.round(h*0.195), Math.round(PNL*0.64));
+            const pN18BL = y + Math.round(PNL*0.07) + Math.round(pN18Fs*0.82); // baseline محسوب (لا يطفح)
+            ctx.fillStyle=TC.gold; ctx.textAlign='center'; ctx.font=`bold ${pN18Fs}px Cairo`;
+            ctx.fillText(String(idx), pCX, pN18BL);
+            const sep18Y = pN18BL + Math.round(pN18Fs*0.22) + 28;
             ctx.strokeStyle='rgba(199,176,140,0.50)'; ctx.lineWidth=4;
-            ctx.beginPath(); ctx.moveTo(x+w-PNL+50,y+h*0.28); ctx.lineTo(x+w-50,y+h*0.28); ctx.stroke();
-            // أيقونة الشخص
-            ctx.save(); ctx.strokeStyle='rgba(199,176,140,0.78)'; ctx.lineWidth=Math.round(h*0.006); ctx.lineCap='round';
-            ctx.beginPath(); ctx.arc(pCX,y+h*0.43,h*0.04,0,Math.PI*2); ctx.stroke();
-            ctx.beginPath(); ctx.arc(pCX,y+h*0.49,h*0.072,Math.PI,Math.PI*2,true); ctx.stroke(); ctx.restore();
-            ctx.fillStyle='rgba(249,249,249,0.55)'; ctx.font=`normal ${Math.round(h*0.044)}px Cairo`;
-            ctx.fillText('منسق التدريب', pCX, y+h*0.62);
+            ctx.beginPath(); ctx.moveTo(x+w-PNL+50,sep18Y); ctx.lineTo(x+w-50,sep18Y); ctx.stroke();
+            // أيقونة الشخص — تحت الخط الفاصل بنسب من الباقي
+            const remH18 = (y+h) - sep18Y;
+            const icS18 = Math.min(Math.round(h*0.044),60);
+            const icCY18 = sep18Y + Math.round(remH18*0.28) + icS18*0.5;
+            ctx.save(); ctx.strokeStyle='rgba(199,176,140,0.80)'; ctx.lineWidth=Math.max(6,icS18*0.12); ctx.lineCap='round';
+            ctx.beginPath(); ctx.arc(pCX,icCY18-icS18*0.55,icS18*0.44,0,Math.PI*2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(pCX,icCY18+icS18*0.20,icS18*0.80,Math.PI,Math.PI*2,true); ctx.stroke(); ctx.restore();
+            const coLbl18Y = icCY18+icS18*0.80+38;
+            ctx.fillStyle='rgba(249,249,249,0.58)'; ctx.font=`normal ${Math.round(h*0.040)}px Cairo`;
+            ctx.fillText('منسق التدريب', pCX, coLbl18Y);
+            const sep2_18Y = coLbl18Y + Math.round(h*0.040)*0.40 + 26;
             ctx.strokeStyle='rgba(199,176,140,0.42)'; ctx.lineWidth=2.5;
-            ctx.beginPath(); ctx.moveTo(x+w-PNL+50,y+h*0.65); ctx.lineTo(x+w-50,y+h*0.65); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x+w-PNL+50,sep2_18Y); ctx.lineTo(x+w-50,sep2_18Y); ctx.stroke();
             const cnFs=Math.round(h*0.080);
-            ctx.fillStyle='#FFFFFF'; ctx.font=`bold ${cnFs}px Cairo`;
-            wrapTextSimple(ctx,c.sp||'—',PNL-50).slice(0,2).forEach((l,li)=>ctx.fillText(l,pCX,y+h*0.74+li*cnFs*1.35));
-            ctx.fillStyle=TC.gold; ctx.save(); ctx.translate(pCX,y+h*0.92); ctx.rotate(Math.PI/4); ctx.fillRect(-12,-12,24,24); ctx.restore();
+            const cnAvailW18 = PNL - 44;
+            ctx.font=`bold ${cnFs}px Cairo`;
+            const cnLines18 = wrapTextSimple(ctx,c.sp||'—',cnAvailW18).slice(0,2);
+            const wideL18 = Math.max(...cnLines18.map(l=>ctx.measureText(l).width));
+            const cnFs18 = wideL18>cnAvailW18 ? Math.floor(cnFs*cnAvailW18/wideL18*0.94) : cnFs;
+            ctx.fillStyle='#FFFFFF'; ctx.font=`bold ${cnFs18}px Cairo`;
+            const cnY18 = sep2_18Y + cnFs18*0.95 + 14;
+            cnLines18.forEach((l,li)=>ctx.fillText(l,pCX,cnY18+li*cnFs18*1.32));
+            ctx.fillStyle=TC.gold; ctx.save(); ctx.translate(pCX,y+h-Math.round(h*0.045)); ctx.rotate(Math.PI/4); ctx.fillRect(-12,-12,24,24); ctx.restore();
 
             // ── منطقة المحتوى (يسار الشريط) ─────────────────────
             // المبدأ: احسب المحتوى أولاً ثم مركزه — مثل iOS
@@ -2991,9 +3002,9 @@
             const x1Start = row1.length === 1 ? x + (w - bW1)/2 : x;
             const bW2 = (w - gap*2) / 3;
 
-            const icS = Math.min(rH*0.148, 78);
-            const vFs = Math.min(rH*0.210, 108);
-            const lFs = Math.min(rH*0.108, 50);
+            const icS = Math.min(rH*0.152, 84);
+            const vFs = Math.min(rH*0.228, 120);
+            const lFs = Math.min(rH*0.116, 56);
 
             const drawRow23 = (arr, bWW, ry, startX) => arr.forEach((it, i) => {
                 const bx = startX + i*(bWW+gap);
@@ -3310,6 +3321,207 @@
             ctx.fillStyle='#FFFFFF'; ctx.textAlign='center';
             ctx.font=`bold ${Math.round(BOT*0.46)}px Cairo`;
             ctx.fillText(`منسق التدريب:  ${c.sp||'—'}`,x+w/2,y+h-BOT/2+BOT*0.16);
+        }
+
+        // ==========================================================
+        // N15 (T26) — الطراز الذهبي: بطاقة مضيئة + شارة دائرية زاوية
+        // N16 (T27) — الطراز الداكن: خلفية خضراء داكنة + نصوص مضيئة
+        // ==========================================================
+
+        // ── T26: الطراز الذهبي ─────────────────────────────────────
+        function drawRef26ScreenCard(ctx, list, stats, pn, tp, si, logo) {
+            tBg(ctx);
+            let y=tHdr(ctx,logo,pn,tp)+55;
+            y=tSts(ctx,stats,y)+65;
+            y=tIntr(ctx,y)+30;
+            const n=list.length||1, gap=52;
+            const cH=tCardH(y,n,gap);
+            for(let i=0;i<n;i++){if(list[i])t26(ctx,list[i],T_MX,y,T_W-T_MX*2,cH,si+i+1);y+=cH+gap;}
+            tFtr(ctx);
+        }
+        function t26(ctx, c, x, y, w, h, idx) {
+            const PAD=Math.round(h*0.030);
+            // Card base مع shadow دافئ
+            tSh(ctx,50,16,'rgba(26,68,69,0.14)'); ctx.fillStyle=TC.bgCard; drawRoundedRect(ctx,x,y,w,h,28); tCl(ctx);
+            ctx.strokeStyle='rgba(199,176,140,0.30)'; ctx.lineWidth=3; ctx.strokeRect(x,y,w,h);
+            // شريط ذهبي أعلى (سميك)
+            ctx.fillStyle=TC.gold; ctx.fillRect(x,y,w,12);
+            // شريط ذهبي يسار (رفيع جانبي)
+            ctx.fillStyle=TC.gold; ctx.fillRect(x,y+12,8,h-12);
+            // شارة الرقم — دائرة خضراء في الزاوية العلوية اليمنى تطفح جزئياً خارج البطاقة
+            const bdR=Math.min(Math.round(h*0.095),118);
+            const bdX=x+w-bdR+bdR*0.25, bdY=y+bdR-bdR*0.25;
+            tSh(ctx,28,10,'rgba(26,68,69,0.30)');
+            ctx.fillStyle=TC.green; ctx.beginPath(); ctx.arc(bdX,bdY,bdR,0,Math.PI*2); ctx.fill(); tCl(ctx);
+            ctx.strokeStyle=TC.gold; ctx.lineWidth=8; ctx.beginPath(); ctx.arc(bdX,bdY,bdR,0,Math.PI*2); ctx.stroke();
+            const bdFs=Math.round(bdR*1.0);
+            ctx.fillStyle=TC.gold; ctx.textAlign='center'; ctx.font=`bold ${bdFs}px Cairo`;
+            ctx.fillText(String(idx),bdX,bdY+bdFs*0.37);
+            // المحتوى: iOS method
+            const bodyW=w-16-PAD*2;
+            const bodyX=x+16+PAD;
+            const cX=bodyX+bodyW/2;
+            const ttlFs=Math.min(Math.round(h*0.088),144);
+            const dtFs=Math.min(Math.round(h*0.044),72);
+            const chH=Math.round(h*0.420);
+            const dtGap=Math.round(h*0.028);
+            const chGap=Math.round(h*0.034);
+            const tRes=wrapTextSmart(ctx,c.n,bodyW-bdR*0.6,2,ttlFs);
+            const ttlH=tRes.lines.length*tRes.lineHeight;
+            const total=ttlH+dtGap+dtFs*1.6+chGap+chH;
+            let cy=y+(h-total)/2;
+            ctx.fillStyle=TC.ink; ctx.textAlign='center'; ctx.font=`bold ${tRes.fontSize}px Cairo`;
+            tRes.lines.forEach((l,i)=>ctx.fillText(l,cX,cy+tRes.fontSize+i*tRes.lineHeight));
+            cy+=ttlH+dtGap;
+            // تاريخ عنابي مع خط ذهبي تحته
+            ctx.fillStyle='#802f2d'; ctx.font=`bold ${dtFs}px Cairo`;
+            ctx.fillText(`${c.s||'—'}  ←  ${c.e||'—'}`,cX,cy+dtFs);
+            const ulY=cy+dtFs+Math.round(dtFs*0.25);
+            const dtW=ctx.measureText(`${c.s||'—'}  ←  ${c.e||'—'}`).width;
+            ctx.strokeStyle=TC.gold; ctx.lineWidth=3;
+            ctx.beginPath(); ctx.moveTo(cX-dtW/2,ulY); ctx.lineTo(cX+dtW/2,ulY); ctx.stroke();
+            cy+=Math.round(dtFs*1.6)+chGap;
+            nChips23(ctx,c,bodyX,cy,bodyW,chH);
+            // شريط المنسق أسفل
+            const BOT=Math.round(h*0.088);
+            ctx.save();
+            ctx.beginPath(); ctx.moveTo(x,y+h-BOT); ctx.lineTo(x+w,y+h-BOT);
+            ctx.lineTo(x+w,y+h-28); ctx.arcTo(x+w,y+h,x+w-28,y+h,28); ctx.lineTo(x+28,y+h); ctx.arcTo(x,y+h,x,y+h-28,28); ctx.closePath(); ctx.clip();
+            const gB26=ctx.createLinearGradient(x,y+h-BOT,x+w,y+h); gB26.addColorStop(0,TC.greenD); gB26.addColorStop(1,TC.green);
+            ctx.fillStyle=gB26; ctx.fillRect(x,y+h-BOT,w,BOT); ctx.restore();
+            ctx.fillStyle=TC.gold; ctx.fillRect(x,y+h-BOT,w,5);
+            ctx.fillStyle='#FFFFFF'; ctx.textAlign='center'; ctx.font=`bold ${Math.round(BOT*0.46)}px Cairo`;
+            ctx.fillText(`منسق التدريب:  ${c.sp||'—'}`,x+w/2,y+h-BOT/2+BOT*0.16);
+        }
+
+        // ── T27: الطراز الداكن ─────────────────────────────────────
+        // خلفية خضراء داكنة — نصوص ذهبية وبيضاء — chips مضيئة
+        function drawRef27ScreenCard(ctx, list, stats, pn, tp, si, logo) {
+            // خلفية داكنة خاصة
+            ctx.fillStyle='#0d2e2e'; ctx.fillRect(0,0,T_W,T_H);
+            // نقاط خفيفة
+            ctx.save(); ctx.globalAlpha=0.04; ctx.fillStyle=TC.gold;
+            for(let xi=0;xi<=T_W;xi+=88) for(let yi=0;yi<=T_H;yi+=88){ctx.beginPath();ctx.arc(xi,yi,3,0,Math.PI*2);ctx.fill();}
+            ctx.restore();
+            // Header داكن مع عنوان ذهبي
+            let y=160;
+            if(logo&&logo.width>0){const lW=1900,lH=lW*(logo.height/logo.width);ctx.drawImage(logo,(T_W-lW)/2,y,lW,lH);y+=lH+80;}
+            else{y+=440;}
+            ctx.fillStyle=TC.gold; ctx.fillRect((T_W-900)/2,y,900,7); y+=80;
+            ctx.fillStyle=TC.gold; ctx.textAlign='center'; ctx.font='bold 230px Cairo';
+            ctx.fillText('جدول الدورات التدريبية',T_W/2,y+230); y+=230+80;
+            ctx.fillStyle=TC.gold; ctx.fillRect((T_W-900)/2,y,900,7); y+=70;
+            // Stats داكنة
+            y=tSts27(ctx,stats,y)+65;
+            y=tIntr27(ctx,y)+30;
+            const n=list.length||1, gap=52;
+            const cH=tCardH(y,n,gap);
+            for(let i=0;i<n;i++){if(list[i])t27(ctx,list[i],T_MX,y,T_W-T_MX*2,cH,si+i+1);y+=cH+gap;}
+            // Footer داكن
+            const fH=178,fY=T_H-fH-28;
+            ctx.fillStyle='rgba(0,0,0,0.30)'; drawRoundedRect(ctx,T_MX,fY,T_W-T_MX*2,fH+10,28);
+            ctx.fillStyle=TC.gold; ctx.fillRect(T_MX,fY,T_W-T_MX*2,10);
+            ctx.fillStyle='#FFFFFF'; ctx.textAlign='center'; ctx.font='bold 70px Cairo';
+            ctx.fillText('وكالة التدريب بجامعة نايف العربية للعلوم الأمنية',T_W/2,fY+112);
+        }
+        function tSts27(ctx, stats, y) {
+            const items=[{l:'خارجية',v:stats.i},{l:'مستمرة',v:stats.c},{l:'جديدة',v:stats.n},{l:'إجمالي',v:stats.t}];
+            const bH=310,gap=66,mX=T_MX+55,bW=(T_W-mX*2-gap*3)/4;
+            items.forEach((it,i)=>{
+                const bx=mX+i*(bW+gap);
+                ctx.fillStyle=i===3?'rgba(199,176,140,0.18)':'rgba(255,255,255,0.07)';
+                drawRoundedRect(ctx,bx,y,bW,bH,28);
+                ctx.strokeStyle=i===3?TC.gold:'rgba(199,176,140,0.25)'; ctx.lineWidth=i===3?5:2.5; ctx.strokeRect(bx,y,bW,bH);
+                ctx.fillStyle=i===3?TC.gold:'#FFFFFF'; ctx.textAlign='center'; ctx.textBaseline='middle';
+                ctx.font='bold 148px Cairo'; ctx.fillText(String(it.v),bx+bW/2,y+bH*0.46);
+                ctx.fillStyle='rgba(255,255,255,0.55)'; ctx.font='normal 60px Cairo'; ctx.fillText(it.l,bx+bW/2,y+bH*0.80);
+                ctx.textBaseline='alphabetic';
+            });
+            return y+bH;
+        }
+        function tIntr27(ctx, y) {
+            const txt=getScreenIntroText(); if(!txt) return y;
+            ctx.font='normal 86px Cairo';
+            const lines=wrapTextSimple(ctx,txt,T_W-560).slice(0,2);
+            const bH=lines.length*128+90;
+            ctx.fillStyle='rgba(255,255,255,0.06)'; drawRoundedRect(ctx,T_MX+55,y,T_W-(T_MX+55)*2,bH,22);
+            ctx.strokeStyle='rgba(199,176,140,0.30)'; ctx.lineWidth=3; ctx.strokeRect(T_MX+55,y,T_W-(T_MX+55)*2,bH);
+            ctx.fillStyle='rgba(255,255,255,0.80)'; ctx.textAlign='center';
+            let ty=y+90; lines.forEach(l=>{ctx.fillText(l,T_W/2,ty);ty+=128;});
+            return y+bH+60;
+        }
+        function t27(ctx, c, x, y, w, h, idx) {
+            const PAD=Math.round(h*0.030);
+            // بطاقة داكنة
+            tSh(ctx,44,14,'rgba(0,0,0,0.35)');
+            ctx.fillStyle='#1a3e3e'; drawRoundedRect(ctx,x,y,w,h,26); tCl(ctx);
+            ctx.strokeStyle='rgba(199,176,140,0.22)'; ctx.lineWidth=3; ctx.strokeRect(x,y,w,h);
+            // خط ذهبي أعلى (سميك)
+            ctx.fillStyle=TC.gold; ctx.fillRect(x,y,w,10);
+            // رقم الدورة — دائرة ذهبية يمين
+            const bdR=Math.min(Math.round(h*0.092),114);
+            const bdX=x+w-bdR-PAD*2, bdY=y+bdR+PAD;
+            ctx.fillStyle='rgba(199,176,140,0.15)'; ctx.beginPath(); ctx.arc(bdX,bdY,bdR,0,Math.PI*2); ctx.fill();
+            ctx.strokeStyle=TC.gold; ctx.lineWidth=7; ctx.beginPath(); ctx.arc(bdX,bdY,bdR,0,Math.PI*2); ctx.stroke();
+            ctx.fillStyle=TC.gold; ctx.textAlign='center'; ctx.font=`bold ${Math.round(bdR*0.98)}px Cairo`;
+            ctx.fillText(String(idx),bdX,bdY+Math.round(bdR*0.37));
+            // محتوى البطاقة الداكنة
+            const cW27=w-bdR*2-PAD*3;
+            const cX27=x+PAD+cW27/2;
+            const ttlFs=Math.min(Math.round(h*0.088),144);
+            const dtFs=Math.min(Math.round(h*0.044),72);
+            const chH=Math.round(h*0.420);
+            const dtGap=Math.round(h*0.028), chGap=Math.round(h*0.034);
+            const tRes=wrapTextSmart(ctx,c.n,cW27-PAD,2,ttlFs);
+            const ttlH=tRes.lines.length*tRes.lineHeight;
+            const total=ttlH+dtGap+dtFs*1.6+chGap+chH;
+            let cy=y+(h-total)/2;
+            ctx.fillStyle='#FFFFFF'; ctx.textAlign='center'; ctx.font=`bold ${tRes.fontSize}px Cairo`;
+            tRes.lines.forEach((l,i)=>ctx.fillText(l,cX27,cy+tRes.fontSize+i*tRes.lineHeight));
+            cy+=ttlH+dtGap;
+            // تاريخ ذهبي
+            ctx.fillStyle=TC.gold; ctx.font=`bold ${dtFs}px Cairo`;
+            ctx.fillText(`${c.s||'—'}  ←  ${c.e||'—'}`,cX27,cy+dtFs);
+            cy+=Math.round(dtFs*1.6)+chGap;
+            // chips داكنة
+            nChips23Dark(ctx,c,x+PAD,cy,cW27+PAD,chH);
+            // المنسق في السطر السفلي
+            const coY27=y+h-Math.round(h*0.092);
+            ctx.fillStyle='rgba(199,176,140,0.12)';
+            ctx.fillRect(x,coY27,w,Math.round(h*0.092));
+            ctx.fillStyle=TC.gold; ctx.fillRect(x,coY27,w,4);
+            ctx.fillStyle='rgba(255,255,255,0.88)'; ctx.textAlign='center'; ctx.font=`bold ${Math.round(h*0.040)}px Cairo`;
+            ctx.fillText(`منسق التدريب:  ${c.sp||'—'}`,x+w/2,coY27+Math.round(h*0.060));
+        }
+        // chips بأسلوب داكن للـ T27
+        function nChips23Dark(ctx, c, x, y, w, h) {
+            const hideFloor=shouldHideFloorValue(c.f);
+            const row1=hideFloor?[['القاعة',c.r,3]]:[['الطابق',c.f,4],['القاعة',c.r,3]];
+            const row2=[['الفترة',c.p,1],['الحالة',c.st,2],['مكان التنفيذ',c.loc,0]];
+            const ROW_MAX=530, cGap=Math.min(h*0.065,84);
+            const rH=Math.min((h-cGap)/2,ROW_MAX);
+            const blockH=rH*2+cGap, y0=y+(h-blockH)/2;
+            const gap=w*0.016;
+            const bW1=row1.length===1?w*0.55:(w-gap)/2;
+            const x1Start=row1.length===1?x+(w-bW1)/2:x;
+            const bW2=(w-gap*2)/3;
+            const icS=Math.min(rH*0.152,84), vFs=Math.min(rH*0.228,120), lFs=Math.min(rH*0.116,56);
+            const dR=(arr,bWW,ry,startX)=>arr.forEach((it,i)=>{
+                const bx=startX+i*(bWW+gap);
+                ctx.fillStyle='rgba(255,255,255,0.08)'; drawRoundedRect(ctx,bx,ry,bWW,rH,Math.min(22,rH*0.12));
+                ctx.strokeStyle='rgba(199,176,140,0.28)'; ctx.lineWidth=2.5; ctx.strokeRect(bx,ry,bWW,rH);
+                ctx.fillStyle=TC.gold; ctx.fillRect(bx,ry,bWW,Math.max(4,rH*0.028));
+                tChipIcon(ctx,it[2],bx+bWW/2,ry+rH*0.26,icS);
+                const v=String(it[1]||'—'); let vf=vFs;
+                ctx.fillStyle='#FFFFFF'; ctx.textAlign='center'; ctx.font=`600 ${vf}px Cairo`;
+                while(ctx.measureText(v).width>bWW*0.86&&vf>28){vf-=3;ctx.font=`600 ${vf}px Cairo`;}
+                let vt=v; while(ctx.measureText(vt).width>bWW*0.86&&vt.length>0)vt=vt.slice(0,-1);
+                if(vt!==v)vt+='…';
+                ctx.fillText(vt,bx+bWW/2,ry+rH*0.61);
+                ctx.fillStyle='rgba(255,255,255,0.45)'; ctx.font=`400 ${lFs}px Cairo`;
+                ctx.fillText(it[0],bx+bWW/2,ry+rH*0.83);
+            });
+            dR(row1,bW1,y0,x1Start); dR(row2,bW2,y0+rH+cGap,x);
         }
 
         // ==========================================================
