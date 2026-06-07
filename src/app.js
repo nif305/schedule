@@ -853,11 +853,15 @@
         //   • قالب iOS HD (4) مرسوم على 6480×11520 (×3) → بلا تحجيم.
         const SCREEN_BASE_W = 2160, SCREEN_BASE_H = 3840;
         function getScreenRender() {
-            if (currentTemplate === 4)  return { w: 6480, h: 11520, ds: 1 };
-            // القوالب 17–21 مرسومة على إحداثيات 4320 → نعرضها على 6480×11520
-            // عبر supersampling ×1.5 لنصوص فائقة الحدّة تفوق 8K
-            if ([17,18,19,20,21].includes(currentTemplate)) return { w: 6480, h: 11520, ds: 1.5 };
-            return { w: 4320, h: 7680, ds: 2 };
+            // كل القوالب تُصدَّر بدقة HD عمودية (1080×1920 — نسبة 9:16)
+            // نحافظ على إحداثيات الرسم الأصلية لكل قالب ونصغّر المخرجات فقط:
+            //   • iOS HD (4) مرسوم على 6480 → ds = 1080/6480
+            //   • القوالب 17–21 مرسومة على 4320 → ds = 1080/4320
+            //   • القوالب القديمة مرسومة على 2160 → ds = 1080/2160
+            const OUT_W = 1080, OUT_H = 1920;
+            if (currentTemplate === 4)  return { w: OUT_W, h: OUT_H, ds: OUT_W / 6480 };
+            if ([17,18,19,20,21].includes(currentTemplate)) return { w: OUT_W, h: OUT_H, ds: OUT_W / 4320 };
+            return { w: OUT_W, h: OUT_H, ds: OUT_W / 2160 };
         }
         async function generateScreenZipBlob(valid, week) {
             const stats = getStats(valid);
